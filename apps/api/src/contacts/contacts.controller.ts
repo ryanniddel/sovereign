@@ -113,4 +113,35 @@ export class ContactsController {
     await this.contactsService.remove(userId, id);
     return wrapResponse(null, 'Contact deleted');
   }
+
+  @Get(':id/meeting-context')
+  async getMeetingContext(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Param('id') id: string,
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const context = await this.contactsService.getMeetingContext(userId, id);
+    return wrapResponse(context);
+  }
+
+  @Post(':id/boost-score')
+  async boostScore(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Param('id') id: string,
+    @Body('interactionType') interactionType: 'meeting_completed' | 'commitment_delivered' | 'responded' | 'meeting_scheduled',
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const contact = await this.contactsService.boostRelationshipScore(userId, id, interactionType);
+    return wrapResponse(contact);
+  }
+
+  @Post('enrich-from-email')
+  async enrichFromEmail(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Body() body: { email: string; name?: string; company?: string },
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const contact = await this.contactsService.findOrCreateFromEmail(userId, body.email, body.name, body.company);
+    return wrapResponse(contact);
+  }
 }

@@ -17,10 +17,14 @@ import { validateTransition } from './meetings-lifecycle.service';
 import { calculateMeetingCost } from '../common';
 import { MeetingStatus } from '@sovereign/shared';
 import { Prisma } from '@prisma/client';
+import { ContactsService } from '../contacts/contacts.service';
 
 @Injectable()
 export class MeetingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly contactsService: ContactsService,
+  ) {}
 
   // ════════════════════════════════════════════════════════════════
   // CREATE & READ
@@ -369,7 +373,7 @@ export class MeetingsService {
       user?.defaultHourlyRate || 0,
     );
 
-    return this.prisma.meeting.update({
+    const updated = await this.prisma.meeting.update({
       where: { id },
       data: {
         status: 'COMPLETED',
@@ -379,6 +383,18 @@ export class MeetingsService {
       },
       include: { participants: true, calendarEvent: true },
     });
+
+    // Boost relationship scores for all participants with linked contacts
+    const participants = await this.prisma.meetingParticipant.findMany({
+      where: { meetingId: id, contactId: { not: null } },
+    });
+    for (const p of participants) {
+      if (p.contactId) {
+        await this.contactsService.boostRelationshipScore(userId, p.contactId, 'meeting_completed');
+      }
+    }
+
+    return updated;
   }
 
   async cancelMeeting(userId: string, id: string) {
@@ -529,14 +545,29 @@ export class MeetingsService {
   async addParticipant(userId: string, meetingId: string, dto: AddParticipantDto) {
     await this.getMeeting(userId, meetingId);
 
+    // Auto-enrich: find or create contact from participant email
+    let contactId = dto.contactId;
+    if (!contactId) {
+      const contact = await this.contactsService.findOrCreateFromEmail(
+        userId,
+        dto.email,
+        dto.name,
+      );
+      contactId = contact.id;
+
+      // Boost relationship score for meeting scheduling
+      await this.contactsService.boostRelationshipScore(userId, contactId, 'meeting_scheduled');
+    }
+
     return this.prisma.meetingParticipant.create({
       data: {
         meetingId,
         email: dto.email,
         name: dto.name,
         role: (dto.role || 'REQUIRED') as any,
-        contactId: dto.contactId,
+        contactId,
       },
+      include: { contact: true },
     });
   }
 

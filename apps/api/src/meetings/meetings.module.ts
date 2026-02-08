@@ -7,9 +7,10 @@ import { RecurringReviewProcessor } from './processors/recurring-review.processo
 import { AcknowledgmentFollowupProcessor } from './processors/acknowledgment-followup.processor';
 import { UsersModule } from '../users/users.module';
 import { QueueModule } from '../queue/queue.module';
+import { ContactsModule } from '../contacts/contacts.module';
 
 @Module({
-  imports: [UsersModule, QueueModule],
+  imports: [UsersModule, QueueModule, ContactsModule],
   controllers: [MeetingsController],
   providers: [
     MeetingsService,

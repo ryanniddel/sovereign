@@ -907,3 +907,83 @@ export interface SchedulerJobHistory {
     averageItemsProcessed: number;
   };
 }
+
+// ── Contact Intelligence ──
+
+export interface ContactMeetingContext {
+  contact: {
+    id: string;
+    name: string;
+    email: string;
+    company?: string;
+    title?: string;
+    tier?: ContactTier | null;
+    relationshipScore: number;
+    lastInteractionAt?: Date;
+  };
+  discProfile: DISCProfile | null;
+  openCommitments: {
+    toContact: {
+      id: string;
+      title: string;
+      dueDate: Date;
+      status: string;
+      priority: string;
+    }[];
+    fromContact: {
+      id: string;
+      title: string;
+      dueDate: Date;
+      status: string;
+      priority: string;
+    }[];
+  };
+  deliveryTrackRecord: {
+    total: number;
+    delivered: number;
+    missed: number;
+    deliveryRate: number | null;
+  };
+  meetingHistory: {
+    totalMeetings: number;
+    completedMeetings: number;
+    averageRating: number | null;
+    responsiveness: number | null;
+    recentMeetings: {
+      id: string;
+      title: string;
+      status: string;
+      meetingType?: string;
+      createdAt: Date;
+    }[];
+  };
+}
+
+export type RelationshipBoostType =
+  | 'meeting_completed'
+  | 'commitment_delivered'
+  | 'responded'
+  | 'meeting_scheduled';
+
+// ── Nimble CRM Sync ──
+
+export interface NimbleSyncStatus {
+  isConnected: boolean;
+  provider: 'nimble';
+  syncedContacts: number;
+  totalContacts: number;
+  lastSyncAt: Date | null;
+  lastSyncError: string | null;
+  message: string;
+}
+
+export interface NimbleSyncResult {
+  status: 'success' | 'partial' | 'not_available';
+  direction: 'inbound' | 'outbound' | 'both';
+  message: string;
+  contactsProcessed: number;
+  contactsCreated: number;
+  contactsUpdated: number;
+  contactsFailed: number;
+  errors: string[];
+}
