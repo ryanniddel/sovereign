@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { focusModesApi } from '@/lib/api/focus-modes.api';
 import { toast } from 'sonner';
 
+// ── Queries ──
+
 export function useFocusModes() {
   return useQuery({
     queryKey: ['focus-modes'],
@@ -29,6 +31,40 @@ export function useFocusMode(id: string) {
   });
 }
 
+export function useFocusModeAnalytics(days?: number) {
+  return useQuery({
+    queryKey: ['focus-modes', 'analytics', days],
+    queryFn: () => focusModesApi.getAnalytics(days),
+    select: (res) => res.data,
+  });
+}
+
+export function useFocusModeSessions(params?: Parameters<typeof focusModesApi.getSessions>[0]) {
+  return useQuery({
+    queryKey: ['focus-modes', 'sessions', params],
+    queryFn: () => focusModesApi.getSessions(params),
+  });
+}
+
+export function usePendingOverrides() {
+  return useQuery({
+    queryKey: ['focus-modes', 'overrides', 'pending'],
+    queryFn: () => focusModesApi.getPendingOverrides(),
+    select: (res) => res.data,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useSuppressedDigest() {
+  return useQuery({
+    queryKey: ['focus-modes', 'digest'],
+    queryFn: () => focusModesApi.getDigest(),
+    select: (res) => res.data,
+  });
+}
+
+// ── Mutations ──
+
 export function useCreateFocusMode() {
   const qc = useQueryClient();
   return useMutation({
@@ -49,6 +85,42 @@ export function useUpdateFocusMode() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['focus-modes'] });
       toast.success('Focus mode updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteFocusMode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: focusModesApi.delete,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['focus-modes'] });
+      toast.success('Focus mode deleted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCloneFocusMode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: focusModesApi.clone,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['focus-modes'] });
+      toast.success('Focus mode cloned');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSeedDefaultFocusModes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: focusModesApi.seedDefaults,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['focus-modes'] });
+      toast.success('Default focus modes created');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -78,26 +150,53 @@ export function useDeactivateFocusMode() {
   });
 }
 
-export function useOverrideFocusMode() {
+// ── 2FA Override (Ulysses Contract) ──
+
+export function useRequestOverride() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, confirmationCode }: { id: string; confirmationCode: string }) =>
-      focusModesApi.override(id, confirmationCode),
+    mutationFn: ({ id, ...data }: { id: string; requesterEmail: string; reason: string }) =>
+      focusModesApi.requestOverride(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['focus-modes'] });
-      toast.success('Focus mode overridden');
+      toast.success('Override request sent — check for the 6-digit code');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 }
 
-export function useDeleteFocusMode() {
+export function useResolveOverride() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: focusModesApi.delete,
+    mutationFn: focusModesApi.resolveOverride,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['focus-modes'] });
-      toast.success('Focus mode deleted');
+      toast.success('Override approved — focus mode deactivated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRejectOverride() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ focusModeId, overrideId }: { focusModeId: string; overrideId: string }) =>
+      focusModesApi.rejectOverride(focusModeId, overrideId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['focus-modes'] });
+      toast.success('Override request rejected');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCheckTriggers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: focusModesApi.checkTriggers,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['focus-modes'] });
+      toast.success('Triggers checked');
     },
     onError: (err: Error) => toast.error(err.message),
   });
