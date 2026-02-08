@@ -1,58 +1,38 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { useUIStore } from '@/stores/ui-store';
-import { useQuickSearch, useRecordSearch } from '@/hooks/use-search';
-import { NAV_ITEMS } from '@/lib/constants';
-import {
-  FileText, Calendar, Users, Target, Search, Shield, Bell, Zap, ClipboardList, CalendarDays,
-} from 'lucide-react';
+import { useQuickSearch, useRecordSearch, useRecentSearches } from '@/hooks/use-search';
+import { NAV_ITEMS, SEARCH_ENTITY_TYPE_ICONS, SEARCH_ENTITY_TYPE_LABELS, SEARCH_ENTITY_TYPE_ROUTES } from '@/lib/constants';
+import { Search, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import type { SearchResult } from '@sovereign/shared';
-
-const ENTITY_ICONS: Record<string, typeof FileText> = {
-  contact: Users,
-  meeting: Calendar,
-  commitment: Target,
-  actionItem: ClipboardList,
-  agreement: FileText,
-  calendarEvent: CalendarDays,
-  escalationRule: Zap,
-  briefing: Bell,
-  focusMode: Shield,
-};
-
-const ENTITY_ROUTES: Record<string, string> = {
-  contact: '/contacts',
-  meeting: '/meetings',
-  commitment: '/accountability/commitments',
-  actionItem: '/accountability/action-items',
-  agreement: '/accountability/agreements',
-  calendarEvent: '/calendar',
-  escalationRule: '/escalation',
-  briefing: '/briefings',
-  focusMode: '/focus-modes',
-};
-
-const ENTITY_LABELS: Record<string, string> = {
-  contact: 'Contacts',
-  meeting: 'Meetings',
-  commitment: 'Commitments',
-  actionItem: 'Action Items',
-  agreement: 'Agreements',
-  calendarEvent: 'Calendar',
-  escalationRule: 'Escalation Rules',
-  briefing: 'Briefings',
-  focusMode: 'Focus Modes',
-};
 
 export function CommandPalette() {
   const router = useRouter();
   const { commandPaletteOpen, setCommandPaletteOpen } = useUIStore();
   const [query, setQuery] = useState('');
-  const { data: results } = useQuickSearch(query);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search query by 250ms
+  useEffect(() => {
+    timerRef.current = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(timerRef.current);
+  }, [query]);
+
+  const { data: results, isFetching } = useQuickSearch(debouncedQuery);
+  const { data: recentSearches } = useRecentSearches(5);
   const recordSearch = useRecordSearch();
+
+  // Reset query when palette closes
+  useEffect(() => {
+    if (!commandPaletteOpen) {
+      setQuery('');
+      setDebouncedQuery('');
+    }
+  }, [commandPaletteOpen]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -75,7 +55,7 @@ export function CommandPalette() {
         selectedResultType: result.type,
       });
       setQuery('');
-      const base = ENTITY_ROUTES[result.type] || '/dashboard';
+      const base = SEARCH_ENTITY_TYPE_ROUTES[result.type] || '/dashboard';
       router.push(`${base}/${result.id}`);
     },
     [router, setCommandPaletteOpen, query, results, recordSearch],
@@ -89,6 +69,20 @@ export function CommandPalette() {
     },
     [router, setCommandPaletteOpen],
   );
+
+  const handleRecentSelect = useCallback(
+    (recentQuery: string) => {
+      setQuery(recentQuery);
+      setDebouncedQuery(recentQuery);
+    },
+    [],
+  );
+
+  const handleViewAll = useCallback(() => {
+    setCommandPaletteOpen(false);
+    router.push(`/search?q=${encodeURIComponent(query)}`);
+    setQuery('');
+  }, [router, setCommandPaletteOpen, query]);
 
   // Group results by type
   const grouped = (results || []).reduce(
@@ -104,7 +98,29 @@ export function CommandPalette() {
     <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
       <CommandInput placeholder="Search everything..." value={query} onValueChange={setQuery} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        {isFetching && debouncedQuery.length >= 2 && (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Searching...</span>
+          </div>
+        )}
+
+        {!isFetching && debouncedQuery.length >= 2 && !results?.length && (
+          <CommandEmpty>No results found.</CommandEmpty>
+        )}
+
+        {/* Recent searches when query is empty */}
+        {!query && recentSearches && recentSearches.length > 0 && (
+          <CommandGroup heading="Recent Searches">
+            {recentSearches.map((recent) => (
+              <CommandItem key={recent.id} onSelect={() => handleRecentSelect(recent.query)}>
+                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 truncate">{recent.query}</span>
+                <span className="text-xs text-muted-foreground">{recent.resultCount} results</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
         {!query && (
           <CommandGroup heading="Navigation">
@@ -118,8 +134,8 @@ export function CommandPalette() {
         )}
 
         {Object.entries(grouped).map(([type, items]) => {
-          const Icon = ENTITY_ICONS[type] || Search;
-          const label = ENTITY_LABELS[type] || type;
+          const Icon = SEARCH_ENTITY_TYPE_ICONS[type as keyof typeof SEARCH_ENTITY_TYPE_ICONS] || Search;
+          const label = SEARCH_ENTITY_TYPE_LABELS[type as keyof typeof SEARCH_ENTITY_TYPE_LABELS] || type;
           return (
             <CommandGroup key={type} heading={label}>
               {items.map((item) => (
@@ -137,6 +153,19 @@ export function CommandPalette() {
             </CommandGroup>
           );
         })}
+
+        {/* View all results link */}
+        {debouncedQuery.length >= 2 && results && results.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem onSelect={handleViewAll}>
+                <ArrowRight className="mr-2 h-4 w-4" />
+                <span>View all results for &ldquo;{query}&rdquo;</span>
+              </CommandItem>
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );

@@ -9,9 +9,10 @@ export class RecordSearchDto {
   @IsString({ each: true })
   entityTypes?: string[];
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  resultCount: number;
+  resultCount?: number;
 
   @IsOptional()
   @IsString()

@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { SearchResultItem } from './search-result-item';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import type { SearchResult } from '@sovereign/shared';
+import { SEARCH_ENTITY_TYPE_ROUTES } from '@/lib/constants';
+import type { SearchResult, SearchEntityType } from '@sovereign/shared';
 
 interface SearchGroup {
   type: string;
@@ -22,18 +23,6 @@ interface SearchResultsProps {
   onResultClick?: (result: SearchResult) => void;
 }
 
-const ENTITY_ROUTES: Record<string, string> = {
-  contact: '/contacts',
-  meeting: '/meetings',
-  commitment: '/accountability/commitments',
-  actionItem: '/accountability/action-items',
-  agreement: '/accountability/agreements',
-  calendarEvent: '/calendar',
-  escalationRule: '/escalation',
-  briefing: '/briefings',
-  focusMode: '/focus-modes',
-};
-
 export function SearchResults({
   results,
   groups,
@@ -49,7 +38,7 @@ export function SearchResults({
       onResultClick(result);
       return;
     }
-    const base = ENTITY_ROUTES[result.type] || '/dashboard';
+    const base = SEARCH_ENTITY_TYPE_ROUTES[result.type as SearchEntityType] || '/dashboard';
     router.push(`${base}/${result.id}`);
   };
 

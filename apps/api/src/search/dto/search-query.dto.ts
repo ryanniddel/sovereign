@@ -22,6 +22,7 @@ export class SearchQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',').map((s: string) => s.trim()) : value))
   entityTypes?: string[];
 
   @IsOptional()

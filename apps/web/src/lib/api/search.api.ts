@@ -39,14 +39,15 @@ export const searchApi = {
   updateSavedSearch: (id: string, data: Partial<SavedSearchInput>) => api.patch<SavedSearch>(`/search/saved/${id}`, data),
   deleteSavedSearch: (id: string) => api.delete(`/search/saved/${id}`),
   executeSavedSearch: (id: string, page?: number, pageSize?: number) =>
-    api.post<{ results: SearchResult[]; totalResults: number; queryTimeMs: number }>(
-      `/search/saved/${id}/execute`, { page, pageSize },
+    api.get<{ results: SearchResult[]; totalResults: number; queryTimeMs: number }>(
+      `/search/saved/${id}/execute`,
+      { ...(page ? { page } : {}), ...(pageSize ? { pageSize } : {}) } as Record<string, string | number | boolean>,
     ),
 
   // Recent searches
   getRecentSearches: (limit?: number) =>
     api.get<RecentSearch[]>('/search/recent', limit ? { limit } : undefined),
   recordSearch: (data: { query: string; entityTypes?: string[]; resultCount?: number; selectedResultId?: string; selectedResultType?: string }) =>
-    api.post<RecentSearch>('/search/recent', data),
+    api.post<RecentSearch>('/search/recent', { ...data, resultCount: data.resultCount ?? 0 }),
   clearRecentSearches: () => api.delete('/search/recent'),
 };

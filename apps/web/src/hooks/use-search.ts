@@ -6,11 +6,21 @@ import { toast } from 'sonner';
 
 // ── Universal search ──
 
-export function useSearch(q: string, entityTypes?: string[]) {
+export function useSearch(params: {
+  q: string;
+  page?: number;
+  pageSize?: number;
+  entityTypes?: string[];
+  status?: string;
+  priority?: string;
+  from?: string;
+  to?: string;
+  grouped?: boolean;
+}) {
   return useQuery({
-    queryKey: ['search', q, entityTypes],
-    queryFn: () => searchApi.search({ q, entityTypes }),
-    enabled: q.length >= 2,
+    queryKey: ['search', params],
+    queryFn: () => searchApi.search(params),
+    enabled: params.q.length >= 2,
     select: (res) => res.data,
   });
 }

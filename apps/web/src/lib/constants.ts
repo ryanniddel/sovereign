@@ -1,9 +1,11 @@
 import {
   LayoutDashboard,
   Calendar,
+  CalendarDays,
   Users,
   Target,
   CheckSquare,
+  ClipboardList,
   Handshake,
   FileText,
   Shield,
@@ -13,6 +15,7 @@ import {
   Settings,
   Moon,
   Sun,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -33,6 +36,7 @@ import {
   NotificationCategory,
   CalendarEventType,
 } from '@sovereign/shared';
+import type { SearchEntityType } from '@sovereign/shared';
 
 export type NavItem = {
   label: string;
@@ -242,3 +246,58 @@ export const NOTIFICATION_CATEGORY_COLORS: Record<NotificationCategory, string> 
   [NotificationCategory.SYSTEM]: 'bg-gray-500/10 text-gray-500',
   [NotificationCategory.FOCUS_MODE]: 'bg-violet-500/10 text-violet-500',
 };
+
+// ── Search Entity Types ──
+
+export const SEARCH_ENTITY_TYPE_LABELS: Record<SearchEntityType, string> = {
+  contact: 'Contacts',
+  meeting: 'Meetings',
+  commitment: 'Commitments',
+  actionItem: 'Action Items',
+  agreement: 'Agreements',
+  calendarEvent: 'Calendar Events',
+  escalationRule: 'Escalation Rules',
+  briefing: 'Briefings',
+  focusMode: 'Focus Modes',
+};
+
+export const SEARCH_ENTITY_TYPE_ICONS: Record<SearchEntityType, LucideIcon> = {
+  contact: Users,
+  meeting: Calendar,
+  commitment: Target,
+  actionItem: ClipboardList,
+  agreement: FileText,
+  calendarEvent: CalendarDays,
+  escalationRule: Zap,
+  briefing: Sun,
+  focusMode: Shield,
+};
+
+export const SEARCH_ENTITY_TYPE_COLORS: Record<SearchEntityType, string> = {
+  contact: 'text-blue-500',
+  meeting: 'text-indigo-500',
+  commitment: 'text-orange-500',
+  actionItem: 'text-emerald-500',
+  agreement: 'text-purple-500',
+  calendarEvent: 'text-blue-400',
+  escalationRule: 'text-red-500',
+  briefing: 'text-yellow-500',
+  focusMode: 'text-purple-400',
+};
+
+export const SEARCH_ENTITY_TYPE_ROUTES: Record<SearchEntityType, string> = {
+  contact: '/contacts',
+  meeting: '/meetings',
+  commitment: '/accountability/commitments',
+  actionItem: '/accountability/action-items',
+  agreement: '/accountability/agreements',
+  calendarEvent: '/calendar',
+  escalationRule: '/escalation',
+  briefing: '/briefings',
+  focusMode: '/focus-modes',
+};
+
+export const SEARCH_ENTITY_TYPES: SearchEntityType[] = [
+  'contact', 'meeting', 'commitment', 'actionItem', 'agreement',
+  'calendarEvent', 'escalationRule', 'briefing', 'focusMode',
+];
