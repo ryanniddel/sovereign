@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
 import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths } from 'date-fns';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -86,6 +86,11 @@ export function CalendarHeader({ currentDate, view, onDateChange, onCreateEvent 
           <Plus className="mr-1 h-4 w-4" />
           Event
         </Button>
+        <Link href="/calendar/settings">
+          <Button variant="ghost" size="icon">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </Link>
       </div>
     </div>
   );
