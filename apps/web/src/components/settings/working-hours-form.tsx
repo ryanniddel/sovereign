@@ -6,20 +6,22 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCurrentUser, useUpdateWorkingHours } from '@/hooks/use-users';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect } from 'react';
 
 const schema = z.object({
-  workingHoursStart: z.string().min(1, 'Start time is required'),
-  workingHoursEnd: z.string().min(1, 'End time is required'),
+  workingHoursStart: z.string().regex(/^\d{2}:\d{2}$/, 'Format: HH:MM'),
+  workingHoursEnd: z.string().regex(/^\d{2}:\d{2}$/, 'Format: HH:MM'),
 });
+
+type FormValues = z.infer<typeof schema>;
 
 export function WorkingHoursForm() {
   const { data: user, isLoading } = useCurrentUser();
   const update = useUpdateWorkingHours();
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<z.infer<typeof schema>>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
@@ -36,7 +38,10 @@ export function WorkingHoursForm() {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Working Hours</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>Working Hours</CardTitle>
+        <CardDescription>Define your standard working hours. Used for scheduling, focus modes, and escalation timing.</CardDescription>
+      </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit((data) => update.mutate(data))} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -51,6 +56,9 @@ export function WorkingHoursForm() {
               {errors.workingHoursEnd && <p className="text-xs text-destructive">{errors.workingHoursEnd.message}</p>}
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Notifications and escalations outside these hours will be deferred unless flagged as critical.
+          </p>
           <div className="flex justify-end">
             <Button type="submit" disabled={update.isPending}>{update.isPending ? 'Saving...' : 'Save'}</Button>
           </div>

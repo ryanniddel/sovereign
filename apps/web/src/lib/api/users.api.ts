@@ -17,6 +17,6 @@ export const usersApi = {
   updateWorkingHours: (data: { workingHoursStart: string; workingHoursEnd: string }) =>
     api.patch<User>('/users/me/working-hours', data),
 
-  updateBriefingPreferences: (data: { morningBriefingTime: string; nightlyReviewTime: string }) =>
+  updateBriefingPreferences: (data: { morningBriefingTime?: string; nightlyReviewTime?: string }) =>
     api.patch<User>('/users/me/briefing-preferences', data),
 };

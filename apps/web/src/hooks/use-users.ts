@@ -48,14 +48,3 @@ export function useUpdateWorkingHours() {
   });
 }
 
-export function useUpdateBriefingPreferences() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: usersApi.updateBriefingPreferences,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['users', 'me'] });
-      toast.success('Briefing preferences updated');
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-}
