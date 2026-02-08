@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FOCUS_MODE_TRIGGER_LABELS, CALENDAR_EVENT_TYPE_LABELS } from '@/lib/constants';
+import { FOCUS_MODE_TRIGGER_LABELS, CALENDAR_EVENT_TYPE_LABELS, FOCUS_MODE_ICON_OPTIONS, FOCUS_MODE_ICON_MAP } from '@/lib/constants';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -29,6 +29,7 @@ const schema = z.object({
   allowAll: z.boolean().optional(),
   requires2faOverride: z.boolean().optional(),
   color: z.string().optional(),
+  icon: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -74,11 +75,35 @@ export function FocusModeForm({ onSubmit, loading, defaultValues }: FocusModeFor
       <CardHeader><CardTitle>Focus Mode</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" {...register('name')} />
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Icon</Label>
+              <Select onValueChange={(v) => setValue('icon', v)} defaultValue={defaultValues?.icon}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select icon">
+                    {watch('icon') && (() => {
+                      const IconComp = FOCUS_MODE_ICON_MAP[watch('icon') || ''];
+                      const label = FOCUS_MODE_ICON_OPTIONS.find((o) => o.value === watch('icon'))?.label;
+                      return IconComp ? <span className="flex items-center gap-2"><IconComp className="h-4 w-4" />{label}</span> : null;
+                    })()}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {FOCUS_MODE_ICON_OPTIONS.map(({ value, label }) => {
+                    const IconComp = FOCUS_MODE_ICON_MAP[value];
+                    return (
+                      <SelectItem key={value} value={value}>
+                        <span className="flex items-center gap-2">{IconComp && <IconComp className="h-4 w-4" />}{label}</span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="color">Color</Label>

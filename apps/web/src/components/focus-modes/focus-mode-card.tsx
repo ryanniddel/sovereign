@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useActivateFocusMode, useDeactivateFocusMode, useCloneFocusMode } from '@/hooks/use-focus-modes';
-import { FOCUS_MODE_TRIGGER_LABELS } from '@/lib/constants';
+import { FOCUS_MODE_TRIGGER_LABELS, FOCUS_MODE_ICON_MAP } from '@/lib/constants';
 import type { FocusMode, FocusModeTrigger } from '@sovereign/shared';
 import Link from 'next/link';
 import { Shield, ShieldOff, Copy } from 'lucide-react';
@@ -22,7 +22,11 @@ export function FocusModeCard({ focusMode }: FocusModeCardProps) {
     <Card style={focusMode.color ? { borderLeftColor: focusMode.color, borderLeftWidth: 3 } : undefined}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
-          {focusMode.isActive ? <Shield className="h-4 w-4 text-emerald-500" /> : <ShieldOff className="h-4 w-4 text-muted-foreground" />}
+          {(() => {
+            const IconComp = focusMode.icon ? FOCUS_MODE_ICON_MAP[focusMode.icon] : null;
+            if (IconComp) return <IconComp className={`h-4 w-4 ${focusMode.isActive ? 'text-emerald-500' : 'text-muted-foreground'}`} />;
+            return focusMode.isActive ? <Shield className="h-4 w-4 text-emerald-500" /> : <ShieldOff className="h-4 w-4 text-muted-foreground" />;
+          })()}
           <CardTitle className="text-sm">{focusMode.name}</CardTitle>
         </div>
         <Badge variant={focusMode.isActive ? 'default' : 'secondary'}>

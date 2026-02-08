@@ -301,3 +301,29 @@ export const SEARCH_ENTITY_TYPES: SearchEntityType[] = [
   'contact', 'meeting', 'commitment', 'actionItem', 'agreement',
   'calendarEvent', 'escalationRule', 'briefing', 'focusMode',
 ];
+
+// ── Focus Mode Icons ──
+
+export const FOCUS_MODE_ICON_MAP: Record<string, LucideIcon> = {
+  shield: Shield,
+  focus: Focus,
+  moon: Moon,
+  sun: Sun,
+  zap: Zap,
+  target: Target,
+  bell: Bell,
+  calendar: Calendar,
+  users: Users,
+};
+
+export const FOCUS_MODE_ICON_OPTIONS = [
+  { value: 'shield', label: 'Shield' },
+  { value: 'focus', label: 'Focus' },
+  { value: 'moon', label: 'Moon' },
+  { value: 'sun', label: 'Sun' },
+  { value: 'zap', label: 'Zap' },
+  { value: 'target', label: 'Target' },
+  { value: 'bell', label: 'Bell' },
+  { value: 'calendar', label: 'Calendar' },
+  { value: 'users', label: 'Users' },
+];

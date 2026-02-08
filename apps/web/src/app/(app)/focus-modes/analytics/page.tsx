@@ -1,19 +1,33 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFocusModeAnalytics } from '@/hooks/use-focus-modes';
 import { BarChart3, Clock, Shield, ShieldAlert, BellOff } from 'lucide-react';
 
+const DATE_RANGE_OPTIONS = [
+  { value: '7', label: 'Last 7 Days' },
+  { value: '14', label: 'Last 14 Days' },
+  { value: '30', label: 'Last 30 Days' },
+  { value: '60', label: 'Last 60 Days' },
+  { value: '90', label: 'Last 90 Days' },
+];
+
 export default function FocusModeAnalyticsPage() {
-  const { data: analytics, isLoading } = useFocusModeAnalytics(30);
+  const [days, setDays] = useState(30);
+  const { data: analytics, isLoading } = useFocusModeAnalytics(days);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight">Focus Mode Analytics</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Focus Mode Analytics</h1>
+          <Skeleton className="h-10 w-[160px]" />
+        </div>
         <div className="grid gap-4 md:grid-cols-4"><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div>
       </div>
     );
@@ -23,7 +37,17 @@ export default function FocusModeAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Focus Mode Analytics (Last 30 Days)</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Focus Mode Analytics</h1>
+        <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {DATE_RANGE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
