@@ -1,22 +1,24 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle } from 'lucide-react';
-import { useActionItems } from '@/hooks/use-action-items';
-import { useCommitments } from '@/hooks/use-commitments';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
+import { useAccountabilityDashboard, useAccountabilityItems } from '@/hooks/use-accountability';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { format } from 'date-fns';
+import { PRIORITY_COLORS } from '@/lib/constants';
+import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import type { Priority } from '@sovereign/shared';
 
 export function OverdueItems() {
-  const { data: actionItems, isLoading: aiLoading } = useActionItems({ status: 'OVERDUE' as never, pageSize: 5 });
-  const { data: commitments, isLoading: cLoading } = useCommitments({ status: 'OVERDUE' as never, pageSize: 5 });
+  const { data: dashboard, isLoading: dashLoading } = useAccountabilityDashboard();
+  const { data: items, isLoading: itemsLoading } = useAccountabilityItems('overdue');
 
-  const isLoading = aiLoading || cLoading;
-  const overdueActionItems = actionItems?.data || [];
-  const overdueCommitments = commitments?.data || [];
-  const totalOverdue = (actionItems?.pagination?.total || 0) + (commitments?.pagination?.total || 0);
+  const isLoading = dashLoading || itemsLoading;
+  const overdueItems = items?.items || [];
+  const totalOverdue = items?.counts?.total || 0;
+  const dueToday = dashboard ? dashboard.dueToday.commitments + dashboard.dueToday.actionItems : 0;
 
   return (
     <Card>
@@ -24,11 +26,16 @@ export function OverdueItems() {
         <CardTitle className="text-sm font-medium">Overdue Items</CardTitle>
         <div className="flex items-center gap-2">
           {totalOverdue > 0 && (
-            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-              {totalOverdue}
-            </span>
+            <Badge variant="destructive" className="text-xs">
+              {totalOverdue} overdue
+            </Badge>
           )}
-          <AlertTriangle className="h-4 w-4 text-destructive" />
+          {dueToday > 0 && (
+            <Badge variant="outline" className="border-orange-500/30 text-xs text-orange-500">
+              {dueToday} due today
+            </Badge>
+          )}
+          <AlertTriangle className={`h-4 w-4 ${totalOverdue > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
         </div>
       </CardHeader>
       <CardContent>
@@ -38,37 +45,48 @@ export function OverdueItems() {
               <Skeleton key={i} className="h-10" />
             ))}
           </div>
-        ) : totalOverdue === 0 ? (
-          <p className="text-sm text-muted-foreground">No overdue items</p>
+        ) : totalOverdue === 0 && dueToday === 0 ? (
+          <p className="text-sm text-muted-foreground">No overdue or due-today items</p>
         ) : (
-          <div className="space-y-2">
-            {overdueCommitments.slice(0, 3).map((item) => (
-              <Link
-                key={item.id}
-                href={`/accountability/commitments/${item.id}`}
-                className="flex items-center justify-between rounded-md p-2 hover:bg-accent transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">Due {format(new Date(item.dueDate), 'MMM d')}</p>
-                </div>
-                <StatusBadge status="OVERDUE" type="commitment" />
-              </Link>
-            ))}
-            {overdueActionItems.slice(0, 2).map((item) => (
-              <Link
-                key={item.id}
-                href={`/accountability/action-items/${item.id}`}
-                className="flex items-center justify-between rounded-md p-2 hover:bg-accent transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">Due {format(new Date(item.dueDate), 'MMM d')}</p>
-                </div>
-                <StatusBadge status="OVERDUE" type="actionItem" />
-              </Link>
-            ))}
+          <div className="space-y-1">
+            {overdueItems.slice(0, 5).map((item) => {
+              const isCommitment = item.itemType === 'commitment';
+              const href = isCommitment
+                ? `/accountability/commitments/${item.id}`
+                : `/accountability/action-items/${item.id}`;
+              const dueDate = new Date((item as unknown as { dueDate: Date | string }).dueDate);
+              const priority = (item as unknown as { priority?: string }).priority;
+
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  className="flex items-center justify-between rounded-md p-2 hover:bg-accent transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">{(item as unknown as { title: string }).title}</p>
+                      {priority && (
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${PRIORITY_COLORS[priority as Priority]?.split(' ')[0] || 'bg-gray-400'}`} />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Due {format(dueDate, 'MMM d')} ({formatDistanceToNow(dueDate, { addSuffix: true })})
+                    </p>
+                  </div>
+                  <StatusBadge status="OVERDUE" type={isCommitment ? 'commitment' : 'actionItem'} />
+                </Link>
+              );
+            })}
           </div>
+        )}
+        {totalOverdue > 5 && (
+          <Link
+            href="/accountability"
+            className="mt-2 flex items-center justify-center gap-1 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+          >
+            View all {totalOverdue} overdue items <ArrowRight className="h-3 w-3" />
+          </Link>
         )}
       </CardContent>
     </Card>
