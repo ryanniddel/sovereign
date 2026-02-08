@@ -69,6 +69,7 @@ model User {
   recentSearches         RecentSearch[]
   calendarProtectionRules CalendarProtectionRule[]
   calendarSyncConfigs    CalendarSyncConfig[]
+  scheduledJobRuns       ScheduledJobRun[]
 
   @@map("users")
 }
@@ -1169,4 +1170,49 @@ model RecentSearch {
 
   @@index([userId, createdAt])
   @@map("recent_searches")
+}
+
+// ════════════════════════════════════════════════════════════════
+// SCHEDULER ENGINE
+// ════════════════════════════════════════════════════════════════
+
+enum ScheduledJobStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMED_OUT
+}
+
+model ScheduledJobRun {
+  id        String             @id @default(cuid())
+  jobName   String             @map("job_name")
+  queue     String
+  status    ScheduledJobStatus @default(RUNNING)
+
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  durationMs  Int?     @map("duration_ms")
+
+  // Results
+  itemsProcessed Int    @default(0) @map("items_processed")
+  itemsFailed    Int    @default(0) @map("items_failed")
+  errorMessage   String? @map("error_message")
+
+  // Retry tracking
+  attempt    Int @default(1)
+  maxRetries Int @default(3) @map("max_retries")
+
+  // Optional user context (for per-user jobs)
+  userId String? @map("user_id")
+
+  // Metadata
+  metadata Json?
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([jobName, startedAt])
+  @@index([status])
+  @@index([userId])
+  @@map("scheduled_job_runs")
 }

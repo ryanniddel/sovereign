@@ -3,12 +3,14 @@ import { CalendarController } from './calendar.controller';
 import { CalendarService } from './calendar.service';
 import { CalendarProtectionService } from './calendar-protection.service';
 import { CalendarSyncService } from './calendar-sync.service';
+import { CalendarSyncProcessor } from './processors/calendar-sync.processor';
 import { UsersModule } from '../users/users.module';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, QueueModule],
   controllers: [CalendarController],
-  providers: [CalendarService, CalendarProtectionService, CalendarSyncService],
+  providers: [CalendarService, CalendarProtectionService, CalendarSyncService, CalendarSyncProcessor],
   exports: [CalendarService, CalendarProtectionService, CalendarSyncService],
 })
 export class CalendarModule {}

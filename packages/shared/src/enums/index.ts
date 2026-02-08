@@ -230,6 +230,15 @@ export enum SyncResolution {
   ERROR = 'ERROR',
 }
 
+// ── Scheduler ──
+
+export enum ScheduledJobStatus {
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  TIMED_OUT = 'TIMED_OUT',
+}
+
 // ── Conflict Detection ──
 
 export enum ConflictSeverity {

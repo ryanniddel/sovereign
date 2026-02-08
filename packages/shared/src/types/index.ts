@@ -28,6 +28,7 @@ import {
   SyncStatus,
   SyncResolution,
   ConflictSeverity,
+  ScheduledJobStatus,
 } from '../enums';
 
 // ── DISC Profile ──
@@ -851,4 +852,58 @@ export interface RecentSearch {
   selectedResultId?: string;
   selectedResultType?: string;
   createdAt: Date;
+}
+
+// ── Scheduler Engine ──
+
+export interface ScheduledJobRun {
+  id: string;
+  jobName: string;
+  queue: string;
+  status: ScheduledJobStatus;
+  startedAt: Date;
+  completedAt?: Date;
+  durationMs?: number;
+  itemsProcessed: number;
+  itemsFailed: number;
+  errorMessage?: string;
+  attempt: number;
+  maxRetries: number;
+  userId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SchedulerJobDefinition {
+  name: string;
+  queue: string;
+  schedule: string;
+  description: string;
+  isEnabled: boolean;
+  lastRunAt?: Date;
+  lastRunStatus?: ScheduledJobStatus;
+  nextRunAt?: Date;
+}
+
+export interface SchedulerHealth {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  uptime: number;
+  jobs: SchedulerJobDefinition[];
+  recentFailures: ScheduledJobRun[];
+  stats: {
+    totalRunsLast24h: number;
+    successRate: number;
+    failedLast24h: number;
+    averageDurationMs: number;
+  };
+}
+
+export interface SchedulerJobHistory {
+  runs: ScheduledJobRun[];
+  total: number;
+  stats: {
+    successCount: number;
+    failureCount: number;
+    averageDurationMs: number;
+    averageItemsProcessed: number;
+  };
 }
