@@ -58,6 +58,7 @@ model User {
   accountabilityScores   AccountabilityScore[]
   streaks                Streak[]
   briefings              Briefing[]
+  briefingPreference     BriefingPreference?
   notificationPreferences NotificationPreference[]
   focusModes             FocusMode[]
   dailyCloseouts         DailyCloseout[]
@@ -815,6 +816,11 @@ model Briefing {
   completedAt     DateTime?       @map("completed_at")
   isCompleted     Boolean         @default(false) @map("is_completed")
 
+  // User engagement
+  readAt          DateTime? @map("read_at")
+  feedbackRating  Int?      @map("feedback_rating")   // 1-5
+  feedbackNotes   String?   @map("feedback_notes")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -823,6 +829,39 @@ model Briefing {
   @@unique([userId, type, date])
   @@index([userId, date])
   @@map("briefings")
+}
+
+model BriefingPreference {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+
+  // Timing (override user defaults)
+  morningTime String @default("07:00") @map("morning_time")
+  nightlyTime String @default("21:00") @map("nightly_time")
+
+  // Delivery
+  morningChannel DeliveryChannel @default(IN_APP) @map("morning_channel")
+  nightlyChannel DeliveryChannel @default(IN_APP) @map("nightly_channel")
+
+  // Content preferences
+  includeMeetingCosts   Boolean @default(true) @map("include_meeting_costs")
+  includeActionItems    Boolean @default(true) @map("include_action_items")
+  includeStreaks         Boolean @default(true) @map("include_streaks")
+  includeReflectionPrompt Boolean @default(true) @map("include_reflection_prompt")
+  maxScheduleItems      Int     @default(20) @map("max_schedule_items")
+  maxOverdueItems       Int     @default(10) @map("max_overdue_items")
+
+  // Auto-delivery
+  morningEnabled Boolean @default(true) @map("morning_enabled")
+  nightlyEnabled Boolean @default(true) @map("nightly_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("briefing_preferences")
 }
 
 // ════════════════════════════════════════════════════════════════

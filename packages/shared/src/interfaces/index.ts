@@ -78,55 +78,6 @@ export interface PostMeetingExtraction {
   }>;
 }
 
-// ── Briefing Content ──
-
-export interface MorningBriefingContent {
-  schedule: Array<{
-    time: string;
-    title: string;
-    prepNotes?: string;
-    meetingCost?: number;
-  }>;
-  commitmentsDueToday: Array<{
-    title: string;
-    dueDate: string;
-    owner: string;
-  }>;
-  overdueItems: Array<{
-    title: string;
-    originalDueDate: string;
-    escalationStatus: string;
-  }>;
-  metrics: {
-    currentStreak: number;
-    accountabilityScore: number;
-  };
-  aiInsight: string;
-  weather?: string;
-  travelAlerts?: string[];
-  priorityRanking: string[];
-}
-
-export interface NightlyReviewContent {
-  openItems: Array<{
-    id: string;
-    title: string;
-    type: 'commitment' | 'actionItem';
-    status: string;
-  }>;
-  scorecard: {
-    commitmentsMade: number;
-    commitmentsDelivered: number;
-    onTimeRate: number;
-  };
-  tomorrowPrep: Array<{
-    meetingTitle: string;
-    preReadSent: boolean;
-    agendaConfirmed: boolean;
-  }>;
-  reflectionPrompt: string;
-}
-
 // ── Meeting Analytics ──
 
 export interface MeetingAnalytics {

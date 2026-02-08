@@ -521,12 +521,128 @@ export interface Briefing {
   userId: string;
   type: BriefingType;
   date: Date;
-  content: Record<string, unknown>;
+  content: MorningBriefingContent | NightlyReviewContent;
   deliveryChannel: DeliveryChannel;
   deliveredAt?: Date;
   completedAt?: Date;
   isCompleted: boolean;
+  readAt?: Date;
+  feedbackRating?: number;
+  feedbackNotes?: string;
   createdAt: Date;
+}
+
+export interface MorningBriefingContent {
+  schedule: {
+    time: string;
+    title: string;
+    type: string;
+    meetingCost?: number;
+    prepReady?: boolean;
+  }[];
+  commitmentsDueToday: {
+    id: string;
+    title: string;
+    priority: string;
+    dueDate: string;
+    owner: string;
+  }[];
+  actionItemsDueToday: {
+    id: string;
+    title: string;
+    priority: string;
+    dueDate: string;
+  }[];
+  overdueItems: {
+    id: string;
+    title: string;
+    type: 'commitment' | 'actionItem';
+    originalDueDate: string;
+    escalationLevel: number;
+    priority: string;
+  }[];
+  activeAgreements: number;
+  metrics: {
+    currentStreak: number;
+    longestStreak: number;
+    accountabilityScore: number;
+    priorityWeightedScore: number;
+    onTimeRate: number;
+  };
+  tomorrowPreview: {
+    meetingCount: number;
+    totalMeetingCost: number;
+    firstMeeting?: string;
+  };
+  aiInsight: string;
+  priorityRanking: string[];
+  generatedAt: string;
+}
+
+export interface NightlyReviewContent {
+  dayRecap: {
+    meetingsAttended: number;
+    meetingCostTotal: number;
+    commitmentsCompleted: number;
+    commitmentsMissed: number;
+    actionItemsCompleted: number;
+    actionItemsMissed: number;
+  };
+  openItems: {
+    id: string;
+    title: string;
+    type: 'commitment' | 'actionItem';
+    status: string;
+    priority: string;
+    dueDate: string;
+  }[];
+  scorecard: {
+    todayScore: number;
+    priorityWeightedScore: number;
+    commitmentsMade: number;
+    commitmentsDelivered: number;
+    commitmentsMissed: number;
+    actionItemsCompleted: number;
+    actionItemsMissed: number;
+    onTimeRate: number;
+    trendDirection: 'UP' | 'DOWN' | 'STABLE';
+  };
+  tomorrowPrep: {
+    meetingTitle: string;
+    startTime: string;
+    preReadSent: boolean;
+    agendaConfirmed: boolean;
+    participantCount: number;
+  }[];
+  streaks: {
+    type: string;
+    current: number;
+    longest: number;
+  }[];
+  activeAgreements: number;
+  closeoutStatus: {
+    isCompleted: boolean;
+    completedAt?: string;
+  };
+  reflectionPrompt: string;
+  generatedAt: string;
+}
+
+export interface BriefingPreference {
+  id: string;
+  userId: string;
+  morningTime: string;
+  nightlyTime: string;
+  morningChannel: DeliveryChannel;
+  nightlyChannel: DeliveryChannel;
+  includeMeetingCosts: boolean;
+  includeActionItems: boolean;
+  includeStreaks: boolean;
+  includeReflectionPrompt: boolean;
+  maxScheduleItems: number;
+  maxOverdueItems: number;
+  morningEnabled: boolean;
+  nightlyEnabled: boolean;
 }
 
 // ── Focus Mode ──
