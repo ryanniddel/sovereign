@@ -682,6 +682,12 @@ export interface FocusMode {
   updatedAt: Date;
 }
 
+export interface ActiveFocusModeResponse extends FocusMode {
+  activeSession: FocusModeSession | null;
+  pendingOverrides: number;
+  activeDurationMinutes: number;
+}
+
 export interface FocusModeSession {
   id: string;
   userId: string;

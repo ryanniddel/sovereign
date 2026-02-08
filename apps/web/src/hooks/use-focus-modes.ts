@@ -46,6 +46,14 @@ export function useFocusModeSessions(params?: Parameters<typeof focusModesApi.ge
   });
 }
 
+export function useModeSessions(id: string, params?: Parameters<typeof focusModesApi.getModeSessions>[1]) {
+  return useQuery({
+    queryKey: ['focus-modes', id, 'sessions', params],
+    queryFn: () => focusModesApi.getModeSessions(id, params),
+    enabled: !!id,
+  });
+}
+
 export function usePendingOverrides() {
   return useQuery({
     queryKey: ['focus-modes', 'overrides', 'pending'],

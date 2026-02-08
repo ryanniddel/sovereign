@@ -28,6 +28,8 @@ import {
   EscalationTargetType,
   BriefingType,
   FocusModeTrigger,
+  FocusModeDeactivationReason,
+  FocusModeOverrideStatus,
   CalendarEventType,
 } from '@sovereign/shared';
 
@@ -183,6 +185,21 @@ export const FOCUS_MODE_TRIGGER_LABELS: Record<FocusModeTrigger, string> = {
   [FocusModeTrigger.MANUAL]: 'Manual',
   [FocusModeTrigger.CALENDAR_EVENT]: 'Calendar Event',
   [FocusModeTrigger.SCHEDULED]: 'Scheduled',
+};
+
+export const FOCUS_MODE_DEACTIVATION_REASON_LABELS: Record<FocusModeDeactivationReason, string> = {
+  [FocusModeDeactivationReason.MANUAL]: 'Manual',
+  [FocusModeDeactivationReason.SCHEDULED]: 'Scheduled',
+  [FocusModeDeactivationReason.CALENDAR_EVENT_ENDED]: 'Calendar Event Ended',
+  [FocusModeDeactivationReason.AUTO_EXPIRED]: 'Auto-expired',
+  [FocusModeDeactivationReason.OVERRIDE]: 'Override',
+};
+
+export const FOCUS_MODE_OVERRIDE_STATUS_LABELS: Record<FocusModeOverrideStatus, string> = {
+  [FocusModeOverrideStatus.PENDING]: 'Pending',
+  [FocusModeOverrideStatus.APPROVED]: 'Approved',
+  [FocusModeOverrideStatus.REJECTED]: 'Rejected',
+  [FocusModeOverrideStatus.EXPIRED]: 'Expired',
 };
 
 export const CALENDAR_EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {

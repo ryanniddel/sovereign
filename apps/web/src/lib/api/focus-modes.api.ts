@@ -2,6 +2,7 @@ import { api } from './client';
 import type {
   FocusMode, FocusModeTrigger, CalendarEventType,
   FocusModeSession, FocusModeOverrideRequest, FocusModeAnalytics,
+  ActiveFocusModeResponse,
 } from '@sovereign/shared';
 
 type FocusModeInput = {
@@ -29,7 +30,7 @@ export const focusModesApi = {
   seedDefaults: () => api.post<FocusMode[]>('/focus-modes/seed-defaults', {}),
 
   // Activation
-  getActive: () => api.get<FocusMode | null>('/focus-modes/active'),
+  getActive: () => api.get<ActiveFocusModeResponse | null>('/focus-modes/active'),
   activate: (id: string) => api.post<FocusMode>(`/focus-modes/${id}/activate`),
   deactivate: (id: string) => api.post<FocusMode>(`/focus-modes/${id}/deactivate`),
 
