@@ -790,3 +790,65 @@ export interface DailyCloseout {
   reflectionNotes?: string;
   createdAt: Date;
 }
+
+// ── Search ──
+
+export type SearchEntityType =
+  | 'contact'
+  | 'meeting'
+  | 'commitment'
+  | 'actionItem'
+  | 'agreement'
+  | 'calendarEvent'
+  | 'escalationRule'
+  | 'briefing'
+  | 'focusMode';
+
+export interface SearchResult {
+  id: string;
+  type: SearchEntityType;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  date?: Date;
+  relevance: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface GroupedSearchResults {
+  groups: {
+    type: SearchEntityType;
+    label: string;
+    results: SearchResult[];
+    total: number;
+  }[];
+  totalResults: number;
+  queryTimeMs: number;
+}
+
+export interface SavedSearch {
+  id: string;
+  userId: string;
+  name: string;
+  query: string;
+  entityTypes?: string[];
+  filters?: Record<string, unknown>;
+  useCount: number;
+  lastUsedAt?: Date;
+  shortcutKey?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RecentSearch {
+  id: string;
+  userId: string;
+  query: string;
+  entityTypes?: string[];
+  resultCount: number;
+  selectedResultId?: string;
+  selectedResultType?: string;
+  createdAt: Date;
+}

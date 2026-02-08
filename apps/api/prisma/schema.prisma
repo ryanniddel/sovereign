@@ -65,6 +65,8 @@ model User {
   focusModeSessions      FocusModeSession[]
   focusModeOverrideRequests FocusModeOverrideRequest[]
   dailyCloseouts         DailyCloseout[]
+  savedSearches          SavedSearch[]
+  recentSearches         RecentSearch[]
   calendarProtectionRules CalendarProtectionRule[]
   calendarSyncConfigs    CalendarSyncConfig[]
 
@@ -1115,4 +1117,56 @@ model DailyCloseout {
 
   @@unique([userId, date])
   @@map("daily_closeouts")
+}
+
+// ════════════════════════════════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════════════════════════════════
+
+model SavedSearch {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  name        String
+  query       String
+  entityTypes Json?  @map("entity_types") // string[] filter
+  filters     Json?  // additional filters (status, priority, date range, etc.)
+
+  // Usage tracking
+  useCount    Int      @default(0) @map("use_count")
+  lastUsedAt  DateTime? @map("last_used_at")
+
+  // Keyboard shortcut (optional)
+  shortcutKey String? @map("shortcut_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("saved_searches")
+}
+
+model RecentSearch {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  query       String
+  entityTypes Json?  @map("entity_types")
+  resultCount Int    @default(0) @map("result_count")
+
+  // Which result was selected (if any)
+  selectedResultId   String? @map("selected_result_id")
+  selectedResultType String? @map("selected_result_type")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("recent_searches")
 }
