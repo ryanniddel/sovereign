@@ -1,9 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useMeeting } from '@/hooks/use-meetings';
+import { useMeeting, useAddParticipant, useRemoveParticipant } from '@/hooks/use-meetings';
 import { LifecycleTracker } from '@/components/meetings/lifecycle-tracker';
 import { MeetingActions } from '@/components/meetings/meeting-actions';
+import { ParticipantList } from '@/components/meetings/participant-list';
+import { AddParticipantDialog } from '@/components/meetings/add-participant-dialog';
+import { CostDisplay } from '@/components/meetings/cost-display';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,19 +16,24 @@ import { PageSkeleton } from '@/components/shared/loading-skeleton';
 import { format } from 'date-fns';
 import { MeetingStatus } from '@sovereign/shared';
 import { MEETING_TYPE_LABELS } from '@/lib/constants';
-import type { MeetingType } from '@sovereign/shared';
-import { Clock, DollarSign, Users, FileText } from 'lucide-react';
+import type { MeetingType, MeetingParticipant } from '@sovereign/shared';
+import { Clock, DollarSign, FileText, Star, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: meeting, isLoading } = useMeeting(id);
+  const [addParticipantOpen, setAddParticipantOpen] = useState(false);
+  const addParticipant = useAddParticipant();
+  const removeParticipant = useRemoveParticipant();
 
   if (isLoading) return <PageSkeleton />;
   if (!meeting) return <p>Meeting not found</p>;
 
   const isCancelled = meeting.status === MeetingStatus.CANCELLED || meeting.status === MeetingStatus.AUTO_CANCELLED;
+  const isTerminal = isCancelled || meeting.status === MeetingStatus.COMPLETED;
+  const participants = (meeting as unknown as { participants?: MeetingParticipant[] }).participants || [];
 
   return (
     <div className="space-y-6">
@@ -34,9 +43,15 @@ export default function MeetingDetailPage() {
           <div className="mt-1 flex items-center gap-2">
             <StatusBadge status={meeting.status} type="meeting" />
             <Badge variant="outline">{MEETING_TYPE_LABELS[meeting.meetingType as MeetingType]}</Badge>
+            {meeting.isRecurring && <Badge variant="secondary">Recurring</Badge>}
           </div>
         </div>
         <div className="flex gap-2">
+          {meeting.status === MeetingStatus.COMPLETED && !meeting.recapContent && (
+            <Button asChild size="sm">
+              <Link href={`/meetings/${id}/recap`}>Submit Recap</Link>
+            </Button>
+          )}
           {meeting.status === MeetingStatus.COMPLETED && (
             <Button asChild size="sm" variant="outline">
               <Link href={`/meetings/${id}/rate`}>Rate Meeting</Link>
@@ -52,6 +67,7 @@ export default function MeetingDetailPage() {
       <Separator />
 
       <div className="grid gap-4 md:grid-cols-2">
+        {/* Details */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Details</CardTitle>
@@ -75,9 +91,29 @@ export default function MeetingDetailPage() {
                 <p className="text-sm">{meeting.decisionRequired}</p>
               </div>
             )}
+            {meeting.agendaUrl && (
+              <div>
+                <p className="text-xs text-muted-foreground">Agenda</p>
+                <a href={meeting.agendaUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary inline-flex items-center gap-1 hover:underline">
+                  View Agenda <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+            {meeting.preReadUrl && (
+              <div>
+                <p className="text-xs text-muted-foreground">Pre-Read</p>
+                <a href={meeting.preReadUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary inline-flex items-center gap-1 hover:underline">
+                  View Pre-Read <ExternalLink className="h-3 w-3" />
+                </a>
+                {meeting.preReadDeadline && (
+                  <p className="text-xs text-muted-foreground">Deadline: {format(new Date(meeting.preReadDeadline), 'PPp')}</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Metrics */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Metrics</CardTitle>
@@ -90,15 +126,28 @@ export default function MeetingDetailPage() {
                 <span className="text-sm text-muted-foreground">({meeting.actualDurationMinutes} actual)</span>
               )}
             </div>
-            {meeting.meetingCost && (
+            {meeting.meetingCost != null && (
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">${meeting.meetingCost.toFixed(2)} cost</span>
               </div>
             )}
-            {meeting.rating && (
+            {meeting.rating != null && (
               <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">Rating: {meeting.rating}/5</span>
+                {meeting.valueScore != null && (
+                  <span className="text-sm text-muted-foreground">(Value: {meeting.valueScore}/5)</span>
+                )}
+              </div>
+            )}
+            {meeting.wasNecessary != null && (
+              <div className="text-sm">
+                {meeting.wasNecessary ? (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Necessary</Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">Rated Unnecessary</Badge>
+                )}
               </div>
             )}
             <div>
@@ -108,6 +157,59 @@ export default function MeetingDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recap */}
+      {meeting.recapContent && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Recap
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm whitespace-pre-wrap">{meeting.recapContent}</p>
+            {meeting.transcriptUrl && (
+              <a href={meeting.transcriptUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
+                View Transcript <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Participants */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Participants ({participants.length})</CardTitle>
+            {!isTerminal && (
+              <Button size="sm" variant="outline" onClick={() => setAddParticipantOpen(true)}>
+                Add Participant
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ParticipantList
+            participants={participants}
+            canManage={!isTerminal}
+            onRemove={(pid) => removeParticipant.mutate({ meetingId: id, participantId: pid })}
+          />
+        </CardContent>
+      </Card>
+
+      <AddParticipantDialog
+        open={addParticipantOpen}
+        onOpenChange={setAddParticipantOpen}
+        onAdd={(data) =>
+          addParticipant.mutate(
+            { meetingId: id, email: data.email, name: data.name, role: data.role as never },
+            { onSuccess: () => setAddParticipantOpen(false) },
+          )
+        }
+        loading={addParticipant.isPending}
+      />
     </div>
   );
 }
