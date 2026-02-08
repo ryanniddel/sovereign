@@ -300,6 +300,7 @@ export interface Meeting {
   isRecurring: boolean;
   recurringGroupId?: string;
   nextReviewDate?: Date;
+  participants?: MeetingParticipant[];
   createdAt: Date;
   updatedAt: Date;
 }

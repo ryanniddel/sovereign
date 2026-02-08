@@ -9,6 +9,7 @@ import { useMeetings } from '@/hooks/use-meetings';
 import { MeetingsTable } from '@/components/meetings/meetings-table';
 import { PaginationControls } from '@/components/shared/pagination-controls';
 import { MEETING_STATUS_LABELS } from '@/lib/constants';
+import type { MeetingStatus } from '@sovereign/shared';
 
 export default function MeetingsPage() {
   const [page, setPage] = useState(1);
@@ -16,7 +17,7 @@ export default function MeetingsPage() {
   const { data, isLoading } = useMeetings({
     page,
     pageSize: 20,
-    status: statusFilter as never,
+    status: statusFilter as MeetingStatus | undefined,
   });
 
   return (

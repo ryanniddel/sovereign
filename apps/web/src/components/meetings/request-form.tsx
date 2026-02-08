@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCreateMeeting } from '@/hooks/use-meetings';
 import { useRouter } from 'next/navigation';
 import { MEETING_TYPE_LABELS } from '@/lib/constants';
+import type { MeetingType } from '@sovereign/shared';
 
 type FormValues = {
   title: string;
@@ -51,7 +52,7 @@ export function MeetingRequestForm() {
         description: data.description,
         decisionRequired: data.decisionRequired,
         estimatedDurationMinutes: data.estimatedDurationMinutes,
-        meetingType: data.meetingType as never,
+        meetingType: data.meetingType as MeetingType | undefined,
         agendaUrl: data.agendaUrl || undefined,
         preReadUrl: data.preReadUrl || undefined,
       },

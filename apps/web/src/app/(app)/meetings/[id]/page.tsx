@@ -16,7 +16,7 @@ import { PageSkeleton } from '@/components/shared/loading-skeleton';
 import { format } from 'date-fns';
 import { MeetingStatus } from '@sovereign/shared';
 import { MEETING_TYPE_LABELS } from '@/lib/constants';
-import type { MeetingType, MeetingParticipant } from '@sovereign/shared';
+import type { MeetingType, MeetingParticipant, ParticipantRole } from '@sovereign/shared';
 import { Clock, DollarSign, FileText, Star, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ export default function MeetingDetailPage() {
 
   const isCancelled = meeting.status === MeetingStatus.CANCELLED || meeting.status === MeetingStatus.AUTO_CANCELLED;
   const isTerminal = isCancelled || meeting.status === MeetingStatus.COMPLETED;
-  const participants = (meeting as unknown as { participants?: MeetingParticipant[] }).participants || [];
+  const participants = meeting.participants || [];
 
   return (
     <div className="space-y-6">
@@ -62,7 +62,12 @@ export default function MeetingDetailPage() {
 
       <LifecycleTracker currentStatus={meeting.status as MeetingStatus} cancelled={isCancelled} />
 
-      <MeetingActions meetingId={id} status={meeting.status as MeetingStatus} />
+      <MeetingActions
+        meetingId={id}
+        status={meeting.status as MeetingStatus}
+        hasAgenda={!!meeting.agendaUrl}
+        hasPreRead={!!meeting.preReadUrl}
+      />
 
       <Separator />
 
@@ -204,7 +209,7 @@ export default function MeetingDetailPage() {
         onOpenChange={setAddParticipantOpen}
         onAdd={(data) =>
           addParticipant.mutate(
-            { meetingId: id, email: data.email, name: data.name, role: data.role as never },
+            { meetingId: id, email: data.email, name: data.name, role: data.role as ParticipantRole },
             { onSuccess: () => setAddParticipantOpen(false) },
           )
         }

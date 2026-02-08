@@ -105,6 +105,32 @@ export function useRescheduleMeeting() {
   });
 }
 
+export function useSubmitAgenda() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, agendaUrl }: { id: string; agendaUrl: string }) =>
+      meetingsApi.submitAgenda(id, agendaUrl),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      toast.success('Agenda submitted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDistributePreRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; preReadUrl: string; deadline?: string }) =>
+      meetingsApi.distributePreRead(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      toast.success('Pre-read distributed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useStartMeeting() {
   const qc = useQueryClient();
   return useMutation({
@@ -192,6 +218,19 @@ export function useRemoveParticipant() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meetings'] });
       toast.success('Participant removed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAcknowledgeParticipant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ meetingId, participantId }: { meetingId: string; participantId: string }) =>
+      meetingsApi.acknowledgeParticipant(meetingId, participantId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      toast.success('Pre-read acknowledged');
     },
     onError: (err: Error) => toast.error(err.message),
   });
