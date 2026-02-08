@@ -4,20 +4,27 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useContacts } from '@/hooks/use-contacts';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { PaginationControls } from '@/components/shared/pagination-controls';
-import { Badge } from '@/components/ui/badge';
+import { TierBadge } from '@/components/contacts/tier-badge';
+import { RelationshipScoreBadge } from '@/components/contacts/relationship-score-badge';
 import type { Contact } from '@sovereign/shared';
 
 const columns: Column<Contact>[] = [
   { key: 'name', header: 'Name', cell: (r) => <span className="font-medium">{r.name}</span> },
-  { key: 'email', header: 'Email', cell: (r) => <span className="text-sm">{r.email}</span> },
+  { key: 'email', header: 'Email', cell: (r) => <span className="text-sm text-muted-foreground">{r.email}</span> },
   { key: 'company', header: 'Company', cell: (r) => r.company || '-' },
-  { key: 'title', header: 'Title', cell: (r) => r.title || '-' },
-  { key: 'relationshipScore', header: 'Score', cell: (r) => r.relationshipScore ? <Badge variant="outline">{r.relationshipScore}</Badge> : '-' },
+  {
+    key: 'tier', header: 'Tier', cell: (r) =>
+      r.tier ? <TierBadge tierName={r.tier.name} priority={r.tier.priority} /> : <span className="text-xs text-muted-foreground">--</span>,
+  },
+  {
+    key: 'relationshipScore', header: 'Score', cell: (r) =>
+      <RelationshipScoreBadge score={r.relationshipScore} />,
+  },
 ];
 
 export default function ContactsPage() {
@@ -32,6 +39,7 @@ export default function ContactsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
         <div className="flex gap-2">
           <Button variant="outline" asChild><Link href="/contacts/tiers">Manage Tiers</Link></Button>
+          <Button variant="outline" asChild><Link href="/contacts/import"><Upload className="mr-1 h-4 w-4" />Import</Link></Button>
           <Button asChild><Link href="/contacts/new"><Plus className="mr-1 h-4 w-4" />New Contact</Link></Button>
         </div>
       </div>

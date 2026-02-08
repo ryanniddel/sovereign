@@ -7,40 +7,42 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { DISCProfile } from '@sovereign/shared';
 
 const schema = z.object({
-  dominance: z.coerce.number().min(0).max(100),
-  influence: z.coerce.number().min(0).max(100),
-  steadiness: z.coerce.number().min(0).max(100),
-  conscientiousness: z.coerce.number().min(0).max(100),
+  discD: z.coerce.number().min(0).max(100),
+  discI: z.coerce.number().min(0).max(100),
+  discS: z.coerce.number().min(0).max(100),
+  discC: z.coerce.number().min(0).max(100),
 });
 
+type DISCFormValues = z.infer<typeof schema>;
+
 interface DISCProfileFormProps {
-  defaultValues?: DISCProfile;
-  onSubmit: (data: DISCProfile) => void;
+  defaultValues?: { discD?: number | null; discI?: number | null; discS?: number | null; discC?: number | null };
+  onSubmit: (data: DISCFormValues) => void;
+  onCancel?: () => void;
   loading?: boolean;
 }
 
 const traits = [
-  { key: 'dominance' as const, label: 'D - Dominance', color: 'text-red-600', borderColor: 'border-red-500' },
-  { key: 'influence' as const, label: 'I - Influence', color: 'text-yellow-600', borderColor: 'border-yellow-500' },
-  { key: 'steadiness' as const, label: 'S - Steadiness', color: 'text-green-600', borderColor: 'border-green-500' },
-  { key: 'conscientiousness' as const, label: 'C - Conscientiousness', color: 'text-blue-600', borderColor: 'border-blue-500' },
+  { key: 'discD' as const, label: 'D - Dominance', color: 'text-red-600', borderColor: 'border-red-500' },
+  { key: 'discI' as const, label: 'I - Influence', color: 'text-yellow-600', borderColor: 'border-yellow-500' },
+  { key: 'discS' as const, label: 'S - Steadiness', color: 'text-green-600', borderColor: 'border-green-500' },
+  { key: 'discC' as const, label: 'C - Conscientiousness', color: 'text-blue-600', borderColor: 'border-blue-500' },
 ];
 
-export function DISCProfileForm({ defaultValues, onSubmit, loading }: DISCProfileFormProps) {
+export function DISCProfileForm({ defaultValues, onSubmit, onCancel, loading }: DISCProfileFormProps) {
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<DISCProfile>({
+  } = useForm<DISCFormValues>({
     resolver: zodResolver(schema) as never,
-    defaultValues: defaultValues ?? {
-      dominance: 50,
-      influence: 50,
-      steadiness: 50,
-      conscientiousness: 50,
+    defaultValues: {
+      discD: defaultValues?.discD ?? 50,
+      discI: defaultValues?.discI ?? 50,
+      discS: defaultValues?.discS ?? 50,
+      discC: defaultValues?.discC ?? 50,
     },
   });
 
@@ -70,7 +72,12 @@ export function DISCProfileForm({ defaultValues, onSubmit, loading }: DISCProfil
             </div>
           ))}
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end gap-2 pt-2">
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
             <Button type="submit" disabled={loading}>
               {loading ? 'Saving...' : 'Save Profile'}
             </Button>

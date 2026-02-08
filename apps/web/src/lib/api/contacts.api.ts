@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Contact } from '@sovereign/shared';
+import type { Contact, ContactMeetingContext, RelationshipBoostType } from '@sovereign/shared';
 
 type ContactQuery = {
   page?: number; pageSize?: number; sortBy?: string; sortOrder?: string;
@@ -33,4 +33,13 @@ export const contactsApi = {
     api.patch<Contact>(`/contacts/${id}/tier`, { tierId }),
 
   delete: (id: string) => api.delete(`/contacts/${id}`),
+
+  getMeetingContext: (id: string) =>
+    api.get<ContactMeetingContext>(`/contacts/${id}/meeting-context`),
+
+  boostScore: (id: string, interactionType: RelationshipBoostType) =>
+    api.post<Contact>(`/contacts/${id}/boost-score`, { interactionType }),
+
+  enrichFromEmail: (email: string) =>
+    api.post<Contact>('/contacts/enrich-from-email', { email }),
 };

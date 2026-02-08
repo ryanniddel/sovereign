@@ -13,8 +13,8 @@ const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   priority: z.coerce.number().min(1, 'Priority must be at least 1'),
   escalationDelayMinutes: z.coerce.number().min(0, 'Must be 0 or more'),
-  calendarAccessLevel: z.enum(['FULL', 'LIMITED', 'NONE']),
-  communicationPriority: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+  calendarAccessLevel: z.enum(['full', 'extended', 'standard', 'limited']),
+  communicationPriority: z.enum(['critical', 'high', 'normal', 'low']),
 });
 
 type TierFormValues = z.infer<typeof schema>;
@@ -22,10 +22,11 @@ type TierFormValues = z.infer<typeof schema>;
 interface TierFormProps {
   onSubmit: (data: TierFormValues) => void;
   defaultValues?: Partial<TierFormValues>;
+  onCancel?: () => void;
   loading?: boolean;
 }
 
-export function TierForm({ onSubmit, defaultValues, loading }: TierFormProps) {
+export function TierForm({ onSubmit, defaultValues, onCancel, loading }: TierFormProps) {
   const {
     register,
     handleSubmit,
@@ -37,8 +38,8 @@ export function TierForm({ onSubmit, defaultValues, loading }: TierFormProps) {
       name: '',
       priority: 1,
       escalationDelayMinutes: 30,
-      calendarAccessLevel: 'NONE',
-      communicationPriority: 'MEDIUM',
+      calendarAccessLevel: 'standard',
+      communicationPriority: 'normal',
       ...defaultValues,
     },
   });
@@ -76,15 +77,16 @@ export function TierForm({ onSubmit, defaultValues, loading }: TierFormProps) {
               <Label>Calendar Access</Label>
               <Select
                 onValueChange={(val) => setValue('calendarAccessLevel', val as TierFormValues['calendarAccessLevel'])}
-                defaultValue={defaultValues?.calendarAccessLevel ?? 'NONE'}
+                defaultValue={defaultValues?.calendarAccessLevel ?? 'standard'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select access level" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="FULL">Full</SelectItem>
-                  <SelectItem value="LIMITED">Limited</SelectItem>
-                  <SelectItem value="NONE">None</SelectItem>
+                  <SelectItem value="full">Full</SelectItem>
+                  <SelectItem value="extended">Extended</SelectItem>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="limited">Limited</SelectItem>
                 </SelectContent>
               </Select>
               {errors.calendarAccessLevel && (
@@ -95,15 +97,16 @@ export function TierForm({ onSubmit, defaultValues, loading }: TierFormProps) {
               <Label>Communication Priority</Label>
               <Select
                 onValueChange={(val) => setValue('communicationPriority', val as TierFormValues['communicationPriority'])}
-                defaultValue={defaultValues?.communicationPriority ?? 'MEDIUM'}
+                defaultValue={defaultValues?.communicationPriority ?? 'normal'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
                 </SelectContent>
               </Select>
               {errors.communicationPriority && (
@@ -112,7 +115,10 @@ export function TierForm({ onSubmit, defaultValues, loading }: TierFormProps) {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            )}
             <Button type="submit" disabled={loading}>
               {loading ? 'Saving...' : defaultValues?.name ? 'Update Tier' : 'Create Tier'}
             </Button>

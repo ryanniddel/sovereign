@@ -83,6 +83,7 @@ export interface ContactTier {
   escalationDelayMinutes: number;
   calendarAccessLevel: string;
   communicationPriority: string;
+  _count?: { contacts: number };
 }
 
 export interface Contact {
@@ -94,7 +95,12 @@ export interface Contact {
   company?: string;
   title?: string;
   tierId?: string;
-  disc?: DISCProfile;
+  tier?: ContactTier | null;
+  // DISC as flat columns (matches Prisma schema)
+  discD?: number | null;
+  discI?: number | null;
+  discS?: number | null;
+  discC?: number | null;
   relationshipScore: number;
   lastInteractionAt?: Date;
   nimbleCrmId?: string;
