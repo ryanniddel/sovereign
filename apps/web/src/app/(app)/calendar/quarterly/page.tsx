@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { CalendarHeader } from '@/components/calendar/calendar-header';
-import { MonthlyView } from '@/components/calendar/monthly-view';
+import { QuarterlyView } from '@/components/calendar/quarterly-view';
 import { CreateEventDialog } from '@/components/calendar/create-event-dialog';
-import { addMonths } from 'date-fns';
+import { EventDetailSheet } from '@/components/calendar/event-detail-sheet';
+import type { CalendarEvent } from '@sovereign/shared';
 
 export default function QuarterlyCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [createOpen, setCreateOpen] = useState(false);
-
-  const months = [currentDate, addMonths(currentDate, 1), addMonths(currentDate, 2)];
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   return (
     <div className="space-y-4">
@@ -20,14 +20,16 @@ export default function QuarterlyCalendarPage() {
         onDateChange={setCurrentDate}
         onCreateEvent={() => setCreateOpen(true)}
       />
-      <div className="grid gap-4 lg:grid-cols-3">
-        {months.map((month) => (
-          <div key={month.toISOString()}>
-            <MonthlyView currentDate={month} />
-          </div>
-        ))}
-      </div>
+      <QuarterlyView
+        currentDate={currentDate}
+        onEventClick={(event) => setSelectedEvent(event)}
+      />
       <CreateEventDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <EventDetailSheet
+        event={selectedEvent}
+        open={!!selectedEvent}
+        onOpenChange={(open) => { if (!open) setSelectedEvent(null); }}
+      />
     </div>
   );
 }
