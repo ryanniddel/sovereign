@@ -34,7 +34,7 @@ export const escalationApi = {
   }) => api.post<EscalationRule>('/escalation/rules', data),
 
   updateRule: (id: string, data: {
-    name?: string; description?: string; steps?: EscalationStepInput[];
+    name?: string; description?: string; triggerType?: string; steps?: EscalationStepInput[];
     isActive?: boolean; maxRetries?: number; cooldownMinutes?: number; stopOnResponse?: boolean;
   }) => api.patch<EscalationRule>(`/escalation/rules/${id}`, data),
 

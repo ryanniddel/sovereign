@@ -38,7 +38,11 @@ export default function EscalationRuleDetailPage() {
               id,
               name: data.name,
               description: data.description,
+              triggerType: data.triggerType,
               isActive: data.isActive,
+              maxRetries: data.maxRetries,
+              cooldownMinutes: data.cooldownMinutes,
+              stopOnResponse: data.stopOnResponse,
               steps: data.steps.map((s) => ({
                 stepOrder: s.stepOrder,
                 channel: s.channel,

@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { WorkflowBuilder } from './workflow-builder';
 import { ESCALATION_TRIGGER_LABELS } from '@/lib/constants';
 
@@ -19,6 +20,9 @@ const schema = z.object({
   description: z.string().optional(),
   triggerType: z.string().min(1, 'Trigger type is required'),
   isActive: z.boolean().optional(),
+  maxRetries: z.coerce.number().int().min(1).max(20).optional(),
+  cooldownMinutes: z.coerce.number().int().min(0).max(10080).optional(),
+  stopOnResponse: z.boolean().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -41,8 +45,8 @@ interface RuleFormProps {
 export function RuleForm({ onSubmit, loading, defaultValues }: RuleFormProps) {
   const [steps, setSteps] = useState<EscalationStep[]>(defaultValues?.steps || []);
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { isActive: true, ...defaultValues },
+    resolver: zodResolver(schema) as never,
+    defaultValues: { isActive: true, maxRetries: 3, cooldownMinutes: 60, stopOnResponse: true, ...defaultValues },
   });
 
   return (
@@ -78,6 +82,26 @@ export function RuleForm({ onSubmit, loading, defaultValues }: RuleFormProps) {
             <div className="flex items-center gap-2">
               <Switch checked={watch('isActive')} onCheckedChange={(v) => setValue('isActive', v)} />
               <Label>Active</Label>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="maxRetries">Max Retries</Label>
+                <Input id="maxRetries" type="number" min={1} max={20} {...register('maxRetries')} />
+                {errors.maxRetries && <p className="text-xs text-destructive">{errors.maxRetries.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cooldownMinutes">Cooldown (minutes)</Label>
+                <Input id="cooldownMinutes" type="number" min={0} max={10080} {...register('cooldownMinutes')} />
+                {errors.cooldownMinutes && <p className="text-xs text-destructive">{errors.cooldownMinutes.message}</p>}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch checked={watch('stopOnResponse')} onCheckedChange={(v) => setValue('stopOnResponse', v)} />
+              <Label>Stop on Response</Label>
             </div>
           </form>
         </CardContent>

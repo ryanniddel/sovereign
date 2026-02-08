@@ -24,6 +24,8 @@ import {
   EscalationTrigger,
   EscalationChannel,
   EscalationTone,
+  EscalationStatus,
+  EscalationTargetType,
   BriefingType,
   FocusModeTrigger,
   CalendarEventType,
@@ -154,6 +156,22 @@ export const ESCALATION_TONE_LABELS: Record<EscalationTone, string> = {
   [EscalationTone.DIRECT]: 'Direct',
   [EscalationTone.URGENT]: 'Urgent',
   [EscalationTone.FINAL]: 'Final',
+};
+
+export const ESCALATION_STATUS_LABELS: Record<EscalationStatus, string> = {
+  [EscalationStatus.PENDING]: 'Pending',
+  [EscalationStatus.SENT]: 'Sent',
+  [EscalationStatus.DELIVERED]: 'Delivered',
+  [EscalationStatus.RESPONDED]: 'Responded',
+  [EscalationStatus.CANCELLED]: 'Cancelled',
+  [EscalationStatus.PAUSED]: 'Paused',
+};
+
+export const ESCALATION_TARGET_TYPE_LABELS: Record<EscalationTargetType, string> = {
+  [EscalationTargetType.COMMITMENT]: 'Commitment',
+  [EscalationTargetType.ACTION_ITEM]: 'Action Item',
+  [EscalationTargetType.MEETING_PREP]: 'Meeting Prep',
+  [EscalationTargetType.ACKNOWLEDGMENT]: 'Acknowledgment',
 };
 
 export const BRIEFING_TYPE_LABELS: Record<BriefingType, string> = {
