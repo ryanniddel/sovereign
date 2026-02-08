@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
 import { PaginationControls } from '@/components/shared/pagination-controls';
 import { EmptyState } from '@/components/shared/empty-state';
 import { NotificationPreferencesForm } from '@/components/notifications/notification-preferences-form';
@@ -20,11 +19,24 @@ import {
 } from '@/hooks/use-notifications';
 import {
   NOTIFICATION_CATEGORY_LABELS, NOTIFICATION_CATEGORY_COLORS,
-  ESCALATION_CHANNEL_LABELS, PRIORITY_COLORS,
+  ESCALATION_CHANNEL_LABELS,
 } from '@/lib/constants';
 import type { Notification, NotificationCategory, Priority, EscalationChannel } from '@sovereign/shared';
-import { Bell, BellOff, Check, CheckCheck, X, Trash2, BarChart3, Settings } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCheck, X, Trash2, BarChart3, Settings, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useRouter } from 'next/navigation';
+
+const TARGET_TYPE_ROUTES: Record<string, string> = {
+  meeting: '/meetings',
+  commitment: '/accountability/commitments',
+  actionItem: '/accountability/action-items',
+  agreement: '/accountability/agreements',
+  escalationRule: '/escalation',
+  contact: '/contacts',
+  calendarEvent: '/calendar',
+  briefing: '/briefings',
+  focusMode: '/focus-modes',
+};
 
 const PRIORITY_BADGE_COLORS: Record<string, string> = {
   LOW: 'bg-gray-500/10 text-gray-500',
@@ -34,6 +46,7 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [tab, setTab] = useState('inbox');
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -46,7 +59,8 @@ export default function NotificationsPage() {
     ...(unreadOnly ? { unreadOnly: true } : {}),
   });
   const { data: unread } = useUnreadCount();
-  const { data: stats, isLoading: statsLoading } = useNotificationStats(30);
+  const [statsDays, setStatsDays] = useState(30);
+  const { data: stats, isLoading: statsLoading } = useNotificationStats(statsDays);
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
   const dismiss = useDismissNotification();
@@ -55,6 +69,14 @@ export default function NotificationsPage() {
   const cleanup = useCleanupNotifications();
 
   const notifications = inboxData?.data || [];
+
+  const handleNavigate = (n: Notification) => {
+    if (!n.isRead) markRead.mutate(n.id);
+    const base = TARGET_TYPE_ROUTES[n.targetType as string];
+    if (base && n.targetId) {
+      router.push(`${base}/${n.targetId}`);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -132,7 +154,7 @@ export default function NotificationsPage() {
                         <p className="text-sm font-medium">{n.title}</p>
                       </div>
                       <p className="text-sm text-muted-foreground">{n.message}</p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className={`text-xs ${NOTIFICATION_CATEGORY_COLORS[n.category as NotificationCategory] || ''}`}>
                           {NOTIFICATION_CATEGORY_LABELS[n.category as NotificationCategory] || n.category}
                         </Badge>
@@ -147,9 +169,19 @@ export default function NotificationsPage() {
                             via {ESCALATION_CHANNEL_LABELS[n.channel as EscalationChannel] || n.channel}
                           </span>
                         )}
+                        {n.suppressionReason && (
+                          <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600">
+                            Suppressed: {n.suppressionReason.replace(/_/g, ' ').toLowerCase()}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
+                      {n.targetType && n.targetId && TARGET_TYPE_ROUTES[n.targetType] && (
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleNavigate(n)} title="View details">
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      )}
                       {!n.isRead && (
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => markRead.mutate(n.id)} title="Mark read">
                           <Check className="h-3 w-3" />
@@ -172,6 +204,16 @@ export default function NotificationsPage() {
 
         {/* ── Stats Tab ── */}
         <TabsContent value="stats" className="space-y-4">
+          <div className="flex justify-end">
+            <Select value={String(statsDays)} onValueChange={(v) => setStatsDays(Number(v))}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[7, 14, 30, 60, 90].map((d) => (
+                  <SelectItem key={d} value={String(d)}>Last {d} days</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {statsLoading ? (
             <div className="grid gap-4 md:grid-cols-4"><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div>
           ) : stats ? (
@@ -180,7 +222,7 @@ export default function NotificationsPage() {
                 <Card>
                   <CardContent className="pt-6 text-center">
                     <p className="text-3xl font-bold">{stats.total}</p>
-                    <p className="text-sm text-muted-foreground">Total (30 Days)</p>
+                    <p className="text-sm text-muted-foreground">Total ({statsDays} Days)</p>
                   </CardContent>
                 </Card>
                 <Card>
