@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ItemForm } from '@/components/accountability/item-form';
 import { useCreateCommitment } from '@/hooks/use-commitments';
 import { OwnerType } from '@sovereign/shared';
+import type { Priority } from '@sovereign/shared';
 
 export default function NewCommitmentPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function NewCommitmentPage() {
               title: data.title,
               description: data.description,
               dueDate: new Date(data.dueDate).toISOString(),
-              priority: data.priority as never,
+              priority: data.priority as Priority | undefined,
               ownerId: 'self',
               ownerType: OwnerType.USER,
               affectsScore: true,
