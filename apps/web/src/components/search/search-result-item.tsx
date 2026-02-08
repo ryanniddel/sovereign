@@ -3,8 +3,9 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FileText } from 'lucide-react';
-import { SEARCH_ENTITY_TYPE_ICONS, SEARCH_ENTITY_TYPE_COLORS } from '@/lib/constants';
+import { SEARCH_ENTITY_TYPE_ICONS, SEARCH_ENTITY_TYPE_COLORS, PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/constants';
 import type { SearchResult, SearchEntityType } from '@sovereign/shared';
+import type { Priority } from '@sovereign/shared';
 
 interface SearchResultItemProps {
   result: SearchResult;
@@ -29,14 +30,19 @@ export function SearchResultItem({ result, onClick }: SearchResultItemProps) {
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         {result.status && (
-          <Badge variant="outline" className="text-xs">
-            {result.status}
+          <Badge variant="outline" className="text-xs capitalize">
+            {result.status.replace(/_/g, ' ').toLowerCase()}
           </Badge>
         )}
         {result.priority && (
-          <Badge variant="outline" className="text-xs">
-            {result.priority}
+          <Badge variant="outline" className={cn('text-xs', PRIORITY_COLORS[result.priority as Priority] || '')}>
+            {PRIORITY_LABELS[result.priority as Priority] || result.priority}
           </Badge>
+        )}
+        {result.date && (
+          <span className="text-xs text-muted-foreground">
+            {new Date(result.date).toLocaleDateString()}
+          </span>
         )}
       </div>
     </button>

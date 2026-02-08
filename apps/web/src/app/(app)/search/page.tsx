@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,8 @@ export default function SearchPage() {
   const initialQ = searchParams.get('q') || '';
 
   const [query, setQuery] = useState(initialQ);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQ);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>('');
@@ -44,14 +46,20 @@ export default function SearchPage() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
 
+  // Debounce search query by 300ms
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
+
   // Update query when URL params change
   useEffect(() => {
     const q = searchParams.get('q');
-    if (q && q !== query) setQuery(q);
+    if (q && q !== query) { setQuery(q); setDebouncedQuery(q); }
   }, [searchParams]);
 
   const { data: searchData, isFetching } = useSearch({
-    q: query,
+    q: debouncedQuery,
     page,
     pageSize,
     entityTypes: entityTypeFilter ? [entityTypeFilter] : undefined,
@@ -122,7 +130,7 @@ export default function SearchPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Search</h1>
-        {queryTimeMs !== undefined && query.length >= 2 && (
+        {queryTimeMs !== undefined && debouncedQuery.length >= 2 && (
           <span className="text-sm text-muted-foreground">
             {totalResults} results in {queryTimeMs}ms
           </span>
@@ -187,7 +195,7 @@ export default function SearchPage() {
               <Label className="text-sm">Group by type</Label>
             </div>
 
-            {query.length >= 2 && (
+            {debouncedQuery.length >= 2 && (
               <Button
                 size="sm"
                 variant="outline"
@@ -199,7 +207,7 @@ export default function SearchPage() {
           </div>
 
           {/* Results */}
-          {isFetching && query.length >= 2 ? (
+          {isFetching && debouncedQuery.length >= 2 ? (
             <div className="space-y-2">
               <Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" />
               <Skeleton className="h-12" /><Skeleton className="h-12" />

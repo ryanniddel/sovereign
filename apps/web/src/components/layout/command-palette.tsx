@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { useUIStore } from '@/stores/ui-store';
-import { useQuickSearch, useRecordSearch, useRecentSearches } from '@/hooks/use-search';
+import { useQuickSearch, useRecordSearch, useRecentSearches, useSearchSuggestions } from '@/hooks/use-search';
 import { NAV_ITEMS, SEARCH_ENTITY_TYPE_ICONS, SEARCH_ENTITY_TYPE_LABELS, SEARCH_ENTITY_TYPE_ROUTES } from '@/lib/constants';
-import { Search, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, Clock, ArrowRight, Loader2, Bookmark } from 'lucide-react';
 import type { SearchResult } from '@sovereign/shared';
 
 export function CommandPalette() {
@@ -23,6 +23,7 @@ export function CommandPalette() {
   }, [query]);
 
   const { data: results, isFetching } = useQuickSearch(debouncedQuery);
+  const { data: suggestions } = useSearchSuggestions(debouncedQuery);
   const { data: recentSearches } = useRecentSearches(5);
   const recordSearch = useRecordSearch();
 
@@ -128,6 +129,19 @@ export function CommandPalette() {
               <CommandItem key={item.href} onSelect={() => handleNavSelect(item.href)}>
                 <item.icon className="mr-2 h-4 w-4" />
                 {item.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {/* Matching saved searches as suggestions */}
+        {debouncedQuery.length >= 1 && suggestions?.savedSearches && suggestions.savedSearches.length > 0 && (
+          <CommandGroup heading="Saved Searches">
+            {suggestions.savedSearches.map((saved) => (
+              <CommandItem key={saved.id} onSelect={() => { setQuery(saved.query); setDebouncedQuery(saved.query); }}>
+                <Bookmark className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 truncate">{saved.name}</span>
+                <span className="text-xs text-muted-foreground truncate">{saved.query}</span>
               </CommandItem>
             ))}
           </CommandGroup>
