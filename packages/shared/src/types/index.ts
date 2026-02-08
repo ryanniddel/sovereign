@@ -19,6 +19,7 @@ import {
   DeliveryChannel,
   FocusModeTrigger,
   NotificationContext,
+  NotificationCategory,
   StreakType,
   ProtectionRuleType,
   SyncDirection,
@@ -672,6 +673,38 @@ export interface NotificationPreference {
   isEnabled: boolean;
   context: NotificationContext;
   priority: Priority;
+}
+
+// ── Notifications ──
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  channel: EscalationChannel;
+  priority: Priority;
+  targetType?: string;
+  targetId?: string;
+  isRead: boolean;
+  readAt?: Date;
+  isDismissed: boolean;
+  dismissedAt?: Date;
+  deliveredAt?: Date;
+  suppressed: boolean;
+  suppressionReason?: string;
+  groupKey?: string;
+  createdAt: Date;
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  byCategory: Record<string, number>;
+  byPriority: Record<string, number>;
+  suppressedCount: number;
+  deliveryRate: number;
 }
 
 // ── Daily Closeout ──

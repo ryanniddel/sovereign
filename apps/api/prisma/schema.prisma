@@ -60,6 +60,7 @@ model User {
   briefings              Briefing[]
   briefingPreference     BriefingPreference?
   notificationPreferences NotificationPreference[]
+  notifications          Notification[]
   focusModes             FocusMode[]
   dailyCloseouts         DailyCloseout[]
   calendarProtectionRules CalendarProtectionRule[]
@@ -891,6 +892,57 @@ model NotificationPreference {
 
   @@unique([userId, channel, context])
   @@map("notification_preferences")
+}
+
+enum NotificationCategory {
+  ESCALATION
+  MEETING
+  COMMITMENT
+  ACTION_ITEM
+  BRIEFING
+  CLOSEOUT
+  SYSTEM
+  FOCUS_MODE
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  // Content
+  title    String
+  message  String
+  category NotificationCategory @default(SYSTEM)
+  channel  EscalationChannel    @default(IN_APP)
+  priority Priority             @default(MEDIUM)
+
+  // Metadata (link to related entity)
+  targetType String? @map("target_type")
+  targetId   String? @map("target_id")
+
+  // State
+  isRead      Boolean   @default(false) @map("is_read")
+  readAt      DateTime? @map("read_at")
+  isDismissed Boolean   @default(false) @map("is_dismissed")
+  dismissedAt DateTime? @map("dismissed_at")
+
+  // Delivery
+  deliveredAt DateTime? @map("delivered_at")
+  suppressed  Boolean   @default(false)
+  suppressionReason String? @map("suppression_reason")
+
+  // Grouping
+  groupKey String? @map("group_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, isDismissed])
+  @@index([userId, category, createdAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 // ════════════════════════════════════════════════════════════════

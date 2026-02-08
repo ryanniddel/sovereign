@@ -163,6 +163,17 @@ export enum NotificationContext {
   ALL = 'ALL',
 }
 
+export enum NotificationCategory {
+  ESCALATION = 'ESCALATION',
+  MEETING = 'MEETING',
+  COMMITMENT = 'COMMITMENT',
+  ACTION_ITEM = 'ACTION_ITEM',
+  BRIEFING = 'BRIEFING',
+  CLOSEOUT = 'CLOSEOUT',
+  SYSTEM = 'SYSTEM',
+  FOCUS_MODE = 'FOCUS_MODE',
+}
+
 // ── Streaks ──
 
 export enum StreakType {
