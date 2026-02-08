@@ -388,12 +388,22 @@ model Meeting {
   meetingCost             Float?       @map("meeting_cost")
   hourlyRate              Float?       @map("hourly_rate")
 
+  // Scheduled time (set when transitioning to SCHEDULED)
+  scheduledStartTime DateTime? @map("scheduled_start_time")
+  scheduledEndTime   DateTime? @map("scheduled_end_time")
+  scheduledLocation  String?   @map("scheduled_location")
+
+  // Reschedule history (JSON array of { previousStartTime, previousEndTime, newStartTime, newEndTime, reason, rescheduledAt })
+  rescheduleHistory Json @default("[]") @map("reschedule_history")
+  rescheduleCount   Int  @default(0) @map("reschedule_count")
+
   // Post-meeting
-  transcriptUrl String?  @map("transcript_url")
-  recapContent  String?  @map("recap_content")
-  rating        Int?     // 1-5
-  valueScore    Int?     @map("value_score") // 1-5
-  wasNecessary  Boolean? @map("was_necessary")
+  transcriptUrl   String?  @map("transcript_url")
+  recapContent    String?  @map("recap_content")
+  contradictions  Json     @default("[]") // detected contradictions with existing agreements
+  rating          Int?     // 1-5
+  valueScore      Int?     @map("value_score") // 1-5
+  wasNecessary    Boolean? @map("was_necessary")
 
   // Recurring governance
   isRecurring      Boolean   @default(false) @map("is_recurring")

@@ -5,9 +5,10 @@ import { MeetingPrepProcessor } from './processors/meeting-prep.processor';
 import { MeetingAutoCancelProcessor } from './processors/meeting-auto-cancel.processor';
 import { RecurringReviewProcessor } from './processors/recurring-review.processor';
 import { UsersModule } from '../users/users.module';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, QueueModule],
   controllers: [MeetingsController],
   providers: [
     MeetingsService,

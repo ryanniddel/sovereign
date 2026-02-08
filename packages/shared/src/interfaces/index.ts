@@ -127,6 +127,47 @@ export interface NightlyReviewContent {
   reflectionPrompt: string;
 }
 
+// ── Meeting Analytics ──
+
+export interface MeetingAnalytics {
+  totalMeetings: number;
+  completedMeetings: number;
+  cancelledMeetings: number;
+  autoCancelledMeetings: number;
+  totalCost: number;
+  totalHoursInMeetings: number;
+  averageRating: number | null;
+  averageValueScore: number | null;
+  meetingsRatedUnnecessary: number;
+  meetingsByType: Record<string, number>;
+  meetingsByStatus: Record<string, number>;
+  qualificationRate: number;
+  averageDurationMinutes: number;
+  costPerMeeting: number;
+}
+
+export interface RescheduleEntry {
+  previousStartTime: string;
+  previousEndTime: string;
+  newStartTime: string;
+  newEndTime: string;
+  reason?: string;
+  rescheduledAt: string;
+}
+
+export interface RecurringMeetingReview {
+  meetingId: string;
+  title: string;
+  totalOccurrences: number;
+  averageRating: number | null;
+  averageCost: number;
+  totalCost: number;
+  averageAttendance: number;
+  percentRatedUnnecessary: number;
+  recommendation: 'KEEP' | 'REVIEW' | 'CANCEL';
+  reasonForRecommendation: string;
+}
+
 // ── Escalation Workflow ──
 
 export interface EscalationWorkflowStep {

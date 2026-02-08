@@ -1,15 +1,21 @@
-import { Controller, Get, Post, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query } from '@nestjs/common';
 import { MeetingsService } from './meetings.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UsersService } from '../users/users.service';
 import { Public } from '../auth/public.decorator';
 import { RequestMeetingDto } from './dto/request-meeting.dto';
+import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { QualifyMeetingDto } from './dto/qualify-meeting.dto';
+import { ScheduleMeetingDto } from './dto/schedule-meeting.dto';
+import { RescheduleMeetingDto } from './dto/reschedule-meeting.dto';
 import { SubmitAgendaDto } from './dto/submit-agenda.dto';
 import { DistributePreReadDto } from './dto/distribute-pre-read.dto';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { RateMeetingDto } from './dto/rate-meeting.dto';
+import { SubmitRecapDto } from './dto/submit-recap.dto';
+import { CompleteMeetingDto } from './dto/complete-meeting.dto';
 import { MeetingQueryDto } from './dto/meeting-query.dto';
+import { MeetingAnalyticsQueryDto } from './dto/meeting-analytics-query.dto';
 import { wrapResponse, wrapPaginatedResponse } from '../common';
 
 @Controller('meetings')
@@ -23,6 +29,10 @@ export class MeetingsController {
     const user = await this.usersService.findOrCreateFromAuth0(currentUser.auth0Id, currentUser.email);
     return user.id;
   }
+
+  // ════════════════════════════════════════════════════════════════
+  // CRUD
+  // ════════════════════════════════════════════════════════════════
 
   @Post()
   async requestMeeting(
@@ -44,6 +54,25 @@ export class MeetingsController {
     return wrapPaginatedResponse(data, total, query.page, query.pageSize);
   }
 
+  @Get('analytics')
+  async getAnalytics(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Query() query: MeetingAnalyticsQueryDto,
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const analytics = await this.meetingsService.getAnalytics(userId, query);
+    return wrapResponse(analytics);
+  }
+
+  @Get('recurring-reviews')
+  async getRecurringReviews(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const reviews = await this.meetingsService.getRecurringReviews(userId);
+    return wrapResponse(reviews);
+  }
+
   @Get(':id')
   async findOne(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
@@ -53,6 +82,21 @@ export class MeetingsController {
     const meeting = await this.meetingsService.findOne(userId, id);
     return wrapResponse(meeting);
   }
+
+  @Patch(':id')
+  async updateMeeting(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Param('id') id: string,
+    @Body() dto: UpdateMeetingDto,
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const meeting = await this.meetingsService.updateMeeting(userId, id, dto);
+    return wrapResponse(meeting);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // LIFECYCLE TRANSITIONS
+  // ════════════════════════════════════════════════════════════════
 
   @Post(':id/qualify')
   async qualify(
@@ -69,9 +113,21 @@ export class MeetingsController {
   async schedule(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
     @Param('id') id: string,
+    @Body() dto: ScheduleMeetingDto,
   ) {
     const userId = await this.resolveUserId(currentUser);
-    const meeting = await this.meetingsService.schedule(userId, id);
+    const meeting = await this.meetingsService.schedule(userId, id, dto);
+    return wrapResponse(meeting);
+  }
+
+  @Post(':id/reschedule')
+  async reschedule(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Param('id') id: string,
+    @Body() dto: RescheduleMeetingDto,
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const meeting = await this.meetingsService.reschedule(userId, id, dto);
     return wrapResponse(meeting);
   }
 
@@ -111,9 +167,10 @@ export class MeetingsController {
   async completeMeeting(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
     @Param('id') id: string,
+    @Body() dto: CompleteMeetingDto,
   ) {
     const userId = await this.resolveUserId(currentUser);
-    const meeting = await this.meetingsService.completeMeeting(userId, id);
+    const meeting = await this.meetingsService.completeMeeting(userId, id, dto);
     return wrapResponse(meeting);
   }
 
@@ -127,6 +184,10 @@ export class MeetingsController {
     return wrapResponse(meeting);
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // POST-MEETING
+  // ════════════════════════════════════════════════════════════════
+
   @Post(':id/rate')
   async rateMeeting(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
@@ -137,6 +198,21 @@ export class MeetingsController {
     const meeting = await this.meetingsService.rateMeeting(userId, id, dto);
     return wrapResponse(meeting);
   }
+
+  @Post(':id/recap')
+  async submitRecap(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Param('id') id: string,
+    @Body() dto: SubmitRecapDto,
+  ) {
+    const userId = await this.resolveUserId(currentUser);
+    const result = await this.meetingsService.submitRecap(userId, id, dto);
+    return wrapResponse(result);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // PARTICIPANTS
+  // ════════════════════════════════════════════════════════════════
 
   @Post(':id/participants')
   async addParticipant(
