@@ -11,6 +11,7 @@ export class SchedulerService {
   constructor(
     @InjectQueue(QUEUE_NAMES.ESCALATION) private readonly escalationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.BRIEFING) private readonly briefingQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.AI_PROCESSING) private readonly aiProcessingQueue: Queue,
   ) {}
 
@@ -50,5 +51,18 @@ export class SchedulerService {
   async autoCancelCheck() {
     this.logger.log('5min: checking for meetings to auto-cancel');
     await this.aiProcessingQueue.add('meeting-auto-cancel-check', {});
+  }
+
+  // Every 2 minutes: focus mode scheduled + calendar trigger checks
+  @Cron('*/2 * * * *')
+  async focusModeTriggerCheck() {
+    this.logger.log('2min: checking focus mode triggers');
+    await this.notificationQueue.add('focus-mode-check-triggers', {});
+  }
+
+  // Every 5 minutes: expire stale focus mode override requests
+  @Cron('*/5 * * * *')
+  async focusModeOverrideExpiry() {
+    await this.notificationQueue.add('focus-mode-expire-overrides', {});
   }
 }

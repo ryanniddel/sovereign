@@ -1,6 +1,18 @@
-import { IsString } from 'class-validator';
+import { IsString, IsEmail, IsOptional } from 'class-validator';
 
-export class OverrideFocusModeDto {
+export class RequestOverrideDto {
+  @IsEmail()
+  requesterEmail: string;
+
   @IsString()
-  confirmationCode: string;
+  reason: string;
+}
+
+export class ResolveOverrideDto {
+  @IsString()
+  overrideCode: string;
+
+  @IsOptional()
+  @IsEmail()
+  resolverEmail?: string;
 }

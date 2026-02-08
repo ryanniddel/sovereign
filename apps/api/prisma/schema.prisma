@@ -62,6 +62,8 @@ model User {
   notificationPreferences NotificationPreference[]
   notifications          Notification[]
   focusModes             FocusMode[]
+  focusModeSessions      FocusModeSession[]
+  focusModeOverrideRequests FocusModeOverrideRequest[]
   dailyCloseouts         DailyCloseout[]
   calendarProtectionRules CalendarProtectionRule[]
   calendarSyncConfigs    CalendarSyncConfig[]
@@ -955,6 +957,21 @@ enum FocusModeTrigger {
   SCHEDULED
 }
 
+enum FocusModeOverrideStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum FocusModeDeactivationReason {
+  MANUAL
+  SCHEDULED
+  CALENDAR_EVENT_ENDED
+  AUTO_EXPIRED
+  OVERRIDE
+}
+
 model FocusMode {
   id          String @id @default(cuid())
   userId      String @map("user_id")
@@ -971,17 +988,94 @@ model FocusMode {
   triggerType              FocusModeTrigger  @default(MANUAL) @map("trigger_type")
   triggerCalendarEventType CalendarEventType? @map("trigger_calendar_event_type")
 
+  // Schedule (for SCHEDULED trigger)
+  scheduleStartTime String? @map("schedule_start_time") // "09:00"
+  scheduleEndTime   String? @map("schedule_end_time")   // "12:00"
+  scheduleDays      Json?   @map("schedule_days")       // [1,2,3,4,5] = Mon-Fri
+
+  // Auto-deactivation
+  autoDeactivateMinutes Int? @map("auto_deactivate_minutes")
+
   // 2FA override (Ulysses contract)
   requires2faOverride Boolean @default(true) @map("requires_2fa_override")
+
+  // UI metadata
+  color String? // hex color for UI
+  icon  String? // icon name for UI
+
+  // Activation tracking
+  activatedAt            DateTime? @map("activated_at")
+  totalActivationMinutes Int       @default(0) @map("total_activation_minutes")
+  activationCount        Int       @default(0) @map("activation_count")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions         FocusModeSession[]
+  overrideRequests FocusModeOverrideRequest[]
 
   @@index([userId, isActive])
   @@map("focus_modes")
+}
+
+model FocusModeSession {
+  id           String @id @default(cuid())
+  userId       String @map("user_id")
+  focusModeId  String @map("focus_mode_id")
+  focusModeName String @map("focus_mode_name")
+
+  activatedAt   DateTime @map("activated_at")
+  deactivatedAt DateTime? @map("deactivated_at")
+  durationMinutes Int?    @map("duration_minutes")
+
+  deactivationReason FocusModeDeactivationReason? @map("deactivation_reason")
+
+  // Stats for this session
+  notificationsSuppressed Int @default(0) @map("notifications_suppressed")
+  notificationsAllowed    Int @default(0) @map("notifications_allowed")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  focusMode FocusMode @relation(fields: [focusModeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, activatedAt])
+  @@index([focusModeId])
+  @@map("focus_mode_sessions")
+}
+
+model FocusModeOverrideRequest {
+  id          String @id @default(cuid())
+  userId      String @map("user_id")
+  focusModeId String @map("focus_mode_id")
+
+  // Who is requesting the override
+  requesterEmail String @map("requester_email")
+  reason         String
+
+  // Generated 6-digit override code
+  overrideCode String @map("override_code")
+
+  // Status
+  status    FocusModeOverrideStatus @default(PENDING)
+  expiresAt DateTime                @map("expires_at")
+
+  // Resolution
+  resolvedAt      DateTime? @map("resolved_at")
+  resolvedByEmail String?   @map("resolved_by_email")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  focusMode FocusMode @relation(fields: [focusModeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([overrideCode])
+  @@map("focus_mode_override_requests")
 }
 
 // ════════════════════════════════════════════════════════════════

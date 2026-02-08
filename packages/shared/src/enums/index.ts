@@ -154,6 +154,21 @@ export enum FocusModeTrigger {
   SCHEDULED = 'SCHEDULED',
 }
 
+export enum FocusModeOverrideStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  EXPIRED = 'EXPIRED',
+}
+
+export enum FocusModeDeactivationReason {
+  MANUAL = 'MANUAL',
+  SCHEDULED = 'SCHEDULED',
+  CALENDAR_EVENT_ENDED = 'CALENDAR_EVENT_ENDED',
+  AUTO_EXPIRED = 'AUTO_EXPIRED',
+  OVERRIDE = 'OVERRIDE',
+}
+
 // ── Notifications ──
 
 export enum NotificationContext {

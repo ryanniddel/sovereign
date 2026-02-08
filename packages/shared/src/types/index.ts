@@ -18,6 +18,8 @@ import {
   BriefingType,
   DeliveryChannel,
   FocusModeTrigger,
+  FocusModeOverrideStatus,
+  FocusModeDeactivationReason,
   NotificationContext,
   NotificationCategory,
   StreakType,
@@ -659,9 +661,72 @@ export interface FocusMode {
   allowAll: boolean;
   triggerType: FocusModeTrigger;
   triggerCalendarEventType?: CalendarEventType;
+  scheduleStartTime?: string;
+  scheduleEndTime?: string;
+  scheduleDays?: number[];
+  autoDeactivateMinutes?: number;
   requires2faOverride: boolean;
+  color?: string;
+  icon?: string;
+  activatedAt?: Date;
+  totalActivationMinutes: number;
+  activationCount: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface FocusModeSession {
+  id: string;
+  userId: string;
+  focusModeId: string;
+  focusModeName: string;
+  activatedAt: Date;
+  deactivatedAt?: Date;
+  durationMinutes?: number;
+  deactivationReason?: FocusModeDeactivationReason;
+  notificationsSuppressed: number;
+  notificationsAllowed: number;
+  createdAt: Date;
+}
+
+export interface FocusModeOverrideRequest {
+  id: string;
+  userId: string;
+  focusModeId: string;
+  requesterEmail: string;
+  reason: string;
+  overrideCode: string;
+  status: FocusModeOverrideStatus;
+  expiresAt: Date;
+  resolvedAt?: Date;
+  resolvedByEmail?: string;
+  createdAt: Date;
+}
+
+export interface FocusModeAnalytics {
+  totalSessions: number;
+  totalMinutes: number;
+  averageSessionMinutes: number;
+  byMode: {
+    modeId: string;
+    modeName: string;
+    sessions: number;
+    totalMinutes: number;
+    notificationsSuppressed: number;
+    notificationsAllowed: number;
+  }[];
+  overrideStats: {
+    totalRequests: number;
+    approved: number;
+    rejected: number;
+    expired: number;
+  };
+  suppressionStats: {
+    totalSuppressed: number;
+    totalAllowed: number;
+    suppressionRate: number;
+  };
+  activationsByDay: Record<string, number>;
 }
 
 // ── Notification Preferences ──
