@@ -20,6 +20,14 @@ export function useOpenItems() {
   });
 }
 
+export function useCloseoutHistory(limit?: number) {
+  return useQuery({
+    queryKey: ['daily-closeout', 'history', limit],
+    queryFn: () => dailyCloseoutApi.getHistory(limit),
+    select: (res) => res.data,
+  });
+}
+
 export function useInitiateCloseout() {
   const qc = useQueryClient();
   return useMutation({
@@ -39,6 +47,18 @@ export function useResolveItems() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['daily-closeout'] });
       toast.success('Items resolved');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useReviewAgreements() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: dailyCloseoutApi.reviewAgreements,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['daily-closeout'] });
+      toast.success('Agreements reviewed');
     },
     onError: (err: Error) => toast.error(err.message),
   });

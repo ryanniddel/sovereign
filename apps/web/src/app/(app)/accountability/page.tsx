@@ -1,7 +1,7 @@
 'use client';
 
 import { useAccountabilityDashboard, useAccountabilityScores } from '@/hooks/use-accountability';
-import { ScoreCard } from '@/components/accountability/score-card';
+import { Scoreboard } from '@/components/accountability/scoreboard';
 import { StreakDisplay } from '@/components/accountability/streak-display';
 import { ScoreTrendChart } from '@/components/accountability/score-trend-chart';
 import { PageSkeleton } from '@/components/shared/loading-skeleton';
@@ -18,8 +18,6 @@ export default function AccountabilityPage() {
 
   if (isLoading) return <PageSkeleton />;
 
-  const summary = dashboard?.summary;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -31,26 +29,7 @@ export default function AccountabilityPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <ScoreCard
-          title="Commitments Delivered"
-          value={summary?.delivered ?? 0}
-          total={summary?.totalCommitments ?? 0}
-          percentage={summary?.totalCommitments ? ((summary?.delivered ?? 0) / summary.totalCommitments) * 100 : 0}
-        />
-        <ScoreCard
-          title="On-Time Rate"
-          value={Math.round((summary?.onTimeRate ?? 0) * 100)}
-          total={100}
-          percentage={(summary?.onTimeRate ?? 0) * 100}
-        />
-        <ScoreCard
-          title="Missed"
-          value={summary?.missed ?? 0}
-          total={summary?.totalCommitments ?? 0}
-          percentage={summary?.totalCommitments ? ((summary?.missed ?? 0) / summary.totalCommitments) * 100 : 0}
-        />
-      </div>
+      {dashboard && <Scoreboard dashboard={dashboard} />}
 
       {dashboard?.streaks && <StreakDisplay streaks={dashboard.streaks} />}
 

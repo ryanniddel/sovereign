@@ -23,9 +23,9 @@ export function AccountabilitySummary() {
     );
   }
 
-  const summary = data?.summary;
+  const latestScore = data?.latestScore;
   const streaks = data?.streaks;
-  const score = summary?.onTimeRate ?? 0;
+  const score = latestScore?.onTimeRate ?? 0;
   const longestStreak = streaks?.reduce(
     (max, s) => (s.currentCount > max ? s.currentCount : max),
     0,
@@ -49,15 +49,15 @@ export function AccountabilitySummary() {
 
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <p className="text-lg font-semibold">{summary?.totalCommitments ?? 0}</p>
+              <p className="text-lg font-semibold">{latestScore?.commitmentsMade ?? 0}</p>
               <p className="text-xs text-muted-foreground">Total</p>
             </div>
             <div>
-              <p className="text-lg font-semibold text-emerald-500">{summary?.delivered ?? 0}</p>
+              <p className="text-lg font-semibold text-emerald-500">{latestScore?.commitmentsDelivered ?? 0}</p>
               <p className="text-xs text-muted-foreground">Delivered</p>
             </div>
             <div>
-              <p className="text-lg font-semibold text-destructive">{summary?.missed ?? 0}</p>
+              <p className="text-lg font-semibold text-destructive">{latestScore?.commitmentsMissed ?? 0}</p>
               <p className="text-xs text-muted-foreground">Missed</p>
             </div>
           </div>
