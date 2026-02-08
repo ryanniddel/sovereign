@@ -66,7 +66,10 @@ export class CommitmentsService {
   }
 
   async complete(userId: string, id: string) {
-    await this.findOne(userId, id);
+    const commitment = await this.findOne(userId, id);
+    if (['COMPLETED', 'DELEGATED'].includes(commitment.status)) {
+      throw new BadRequestException('Commitment is already completed or delegated');
+    }
     return this.prisma.commitment.update({
       where: { id },
       data: { status: 'COMPLETED', completedAt: new Date() },
@@ -74,10 +77,17 @@ export class CommitmentsService {
   }
 
   async reschedule(userId: string, id: string, newDueDate: string) {
-    await this.findOne(userId, id);
+    const commitment = await this.findOne(userId, id);
+    if (['COMPLETED', 'DELEGATED'].includes(commitment.status)) {
+      throw new BadRequestException('Cannot reschedule a completed or delegated commitment');
+    }
     return this.prisma.commitment.update({
       where: { id },
-      data: { status: 'RESCHEDULED', dueDate: new Date(newDueDate) },
+      data: {
+        status: 'RESCHEDULED',
+        dueDate: new Date(newDueDate),
+        rescheduleCount: { increment: 1 },
+      },
     });
   }
 

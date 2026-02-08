@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { DailyCloseoutService } from './daily-closeout.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UsersService } from '../users/users.service';
@@ -48,6 +48,16 @@ export class DailyCloseoutController {
     return wrapResponse(closeout);
   }
 
+  @Post('today/review-agreements')
+  async reviewAgreements(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Body('count') count: number,
+  ) {
+    const user = await this.resolveUser(currentUser);
+    const closeout = await this.dailyCloseoutService.reviewAgreements(user.id, user.timezone, count || 0);
+    return wrapResponse(closeout);
+  }
+
   @Post('today/complete')
   async complete(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
@@ -56,5 +66,15 @@ export class DailyCloseoutController {
     const user = await this.resolveUser(currentUser);
     const closeout = await this.dailyCloseoutService.complete(user.id, user.timezone, dto);
     return wrapResponse(closeout);
+  }
+
+  @Get('history')
+  async getHistory(
+    @CurrentUser() currentUser: { auth0Id: string; email: string },
+    @Query('limit') limit?: string,
+  ) {
+    const user = await this.resolveUser(currentUser);
+    const history = await this.dailyCloseoutService.getHistory(user.id, limit ? parseInt(limit, 10) : 30);
+    return wrapResponse(history);
   }
 }

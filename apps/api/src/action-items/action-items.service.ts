@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateActionItemDto } from './dto/create-action-item.dto';
 import { UpdateActionItemDto } from './dto/update-action-item.dto';
@@ -66,7 +66,10 @@ export class ActionItemsService {
   }
 
   async complete(userId: string, id: string) {
-    await this.findOne(userId, id);
+    const item = await this.findOne(userId, id);
+    if (['COMPLETED', 'DELEGATED'].includes(item.status)) {
+      throw new BadRequestException('Action item is already completed or delegated');
+    }
     return this.prisma.actionItem.update({
       where: { id },
       data: { status: 'COMPLETED', completedAt: new Date() },
@@ -74,10 +77,17 @@ export class ActionItemsService {
   }
 
   async reschedule(userId: string, id: string, newDueDate: string) {
-    await this.findOne(userId, id);
+    const item = await this.findOne(userId, id);
+    if (['COMPLETED', 'DELEGATED'].includes(item.status)) {
+      throw new NotFoundException('Cannot reschedule a completed or delegated action item');
+    }
     return this.prisma.actionItem.update({
       where: { id },
-      data: { status: 'RESCHEDULED', dueDate: new Date(newDueDate) },
+      data: {
+        status: 'RESCHEDULED',
+        dueDate: new Date(newDueDate),
+        rescheduleCount: { increment: 1 },
+      },
     });
   }
 

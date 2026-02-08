@@ -508,6 +508,9 @@ model Commitment {
   delegatedAt                  DateTime? @map("delegated_at")
   delegatorRetainsAccountability Boolean @default(true) @map("delegator_retains_accountability")
 
+  // Reschedule tracking
+  rescheduleCount Int @default(0) @map("reschedule_count")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -558,6 +561,9 @@ model ActionItem {
   escalationRuleId      String?   @map("escalation_rule_id")
   currentEscalationLevel Int      @default(0) @map("current_escalation_level")
   lastEscalatedAt       DateTime? @map("last_escalated_at")
+
+  // Reschedule tracking
+  rescheduleCount Int @default(0) @map("reschedule_count")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -715,6 +721,17 @@ model AccountabilityScore {
   commitmentsDelivered Int  @default(0) @map("commitments_delivered")
   commitmentsMissed   Int   @default(0) @map("commitments_missed")
   onTimeRate          Float @default(0) @map("on_time_rate")
+
+  // Action items tracking
+  actionItemsCompleted Int @default(0) @map("action_items_completed")
+  actionItemsMissed    Int @default(0) @map("action_items_missed")
+
+  // Priority-weighted scoring
+  priorityWeightedScore Float @default(0) @map("priority_weighted_score")
+
+  // Delegation & reschedule tracking
+  delegatedCount   Int @default(0) @map("delegated_count")
+  rescheduledCount Int @default(0) @map("rescheduled_count")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -877,6 +894,15 @@ model DailyCloseout {
   itemsCompleted    Int @default(0) @map("items_completed")
   itemsRescheduled  Int @default(0) @map("items_rescheduled")
   itemsDelegated    Int @default(0) @map("items_delegated")
+
+  // Agreements reviewed during closeout
+  activeAgreementsReviewed Int @default(0) @map("active_agreements_reviewed")
+
+  // Score at close
+  scoreAtClose Float? @map("score_at_close")
+
+  // Structured summary
+  closeoutSummary Json? @map("closeout_summary")
 
   // Reflection
   reflectionNotes String? @map("reflection_notes")

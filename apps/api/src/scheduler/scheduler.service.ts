@@ -19,6 +19,7 @@ export class SchedulerService {
   async hourlyOverdueScan() {
     this.logger.log('Hourly: triggering overdue scan');
     await this.escalationQueue.add('overdue-scan', {});
+    await this.aiProcessingQueue.add('detect-overdue', {});
   }
 
   // 6am daily: morning briefing generation

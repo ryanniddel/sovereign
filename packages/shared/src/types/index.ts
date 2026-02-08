@@ -419,6 +419,57 @@ export interface AccountabilityScore {
   commitmentsDelivered: number;
   commitmentsMissed: number;
   onTimeRate: number;
+  actionItemsCompleted: number;
+  actionItemsMissed: number;
+  priorityWeightedScore: number;
+  delegatedCount: number;
+  rescheduledCount: number;
+}
+
+export interface AccountabilityTrend {
+  period: string; // "7d" | "30d" | "90d"
+  averageScore: number;
+  averagePriorityWeightedScore: number;
+  totalCommitmentsMade: number;
+  totalCommitmentsDelivered: number;
+  totalCommitmentsMissed: number;
+  totalActionItemsCompleted: number;
+  totalActionItemsMissed: number;
+  onTimeRate: number;
+  direction: 'UP' | 'DOWN' | 'STABLE';
+  changePercent: number;
+  scores: AccountabilityScore[];
+}
+
+export interface AccountabilityDashboard {
+  latestScore: AccountabilityScore | null;
+  streaks: Streak[];
+  trends: {
+    sevenDay: AccountabilityTrend;
+    thirtyDay: AccountabilityTrend;
+    ninetyDay: AccountabilityTrend;
+  };
+  overdueItems: {
+    commitments: number;
+    actionItems: number;
+  };
+  dueToday: {
+    commitments: number;
+    actionItems: number;
+  };
+  activeAgreements: number;
+  lastCloseoutCompleted: boolean;
+}
+
+export interface CloseoutSummary {
+  openItemsAtStart: number;
+  itemsCompleted: number;
+  itemsRescheduled: number;
+  itemsDelegated: number;
+  activeAgreementsReviewed: number;
+  completionRate: number;
+  scoreAtClose: number;
+  streaksUpdated: string[];
 }
 
 export interface Streak {
@@ -488,6 +539,9 @@ export interface DailyCloseout {
   itemsCompleted: number;
   itemsRescheduled: number;
   itemsDelegated: number;
+  activeAgreementsReviewed: number;
+  scoreAtClose?: number;
+  closeoutSummary?: CloseoutSummary;
   reflectionNotes?: string;
   createdAt: Date;
 }
