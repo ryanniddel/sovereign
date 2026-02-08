@@ -629,10 +629,15 @@ model EscalationRule {
   description String?
   triggerType EscalationTrigger @map("trigger_type")
 
-  // Steps stored as JSON array of { stepOrder, channel, delayMinutes, tone, messageTemplate }
+  // Steps stored as JSON array of { stepOrder, channel, delayMinutes, tone, messageTemplate, recipientEmail? }
   steps Json @default("[]")
 
   isActive Boolean @default(true) @map("is_active")
+
+  // Execution config
+  maxRetries      Int @default(3) @map("max_retries")
+  cooldownMinutes Int @default(60) @map("cooldown_minutes")
+  stopOnResponse  Boolean @default(true) @map("stop_on_response")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -645,6 +650,15 @@ model EscalationRule {
 
   @@index([userId, isActive])
   @@map("escalation_rules")
+}
+
+enum EscalationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  RESPONDED
+  CANCELLED
+  PAUSED
 }
 
 enum EscalationChannel {
@@ -686,8 +700,10 @@ model EscalationLog {
   recipientContactId String? @map("recipient_contact_id")
 
   // Delivery
-  channel EscalationChannel
-  tone    EscalationTone
+  channel          EscalationChannel
+  tone             EscalationTone
+  messageContent   String?          @map("message_content")
+  escalationStatus EscalationStatus @default(PENDING) @map("escalation_status")
 
   sentAt             DateTime  @map("sent_at")
   deliveredAt        DateTime? @map("delivered_at")

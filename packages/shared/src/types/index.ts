@@ -14,6 +14,7 @@ import {
   EscalationChannel,
   EscalationTone,
   EscalationTargetType,
+  EscalationStatus,
   BriefingType,
   DeliveryChannel,
   FocusModeTrigger,
@@ -387,6 +388,9 @@ export interface EscalationRule {
   triggerType: EscalationTrigger;
   steps: EscalationStep[];
   isActive: boolean;
+  maxRetries: number;
+  cooldownMinutes: number;
+  stopOnResponse: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -397,15 +401,42 @@ export interface EscalationLog {
   escalationRuleId: string;
   stepOrder: number;
   targetType: EscalationTargetType;
-  targetId: string;
+  commitmentId?: string;
+  actionItemId?: string;
   recipientEmail: string;
   recipientContactId?: string;
   channel: EscalationChannel;
   tone: EscalationTone;
+  messageContent?: string;
+  escalationStatus: EscalationStatus;
   sentAt: Date;
   deliveredAt?: Date;
   responseReceivedAt?: Date;
   responseContent?: string;
+}
+
+export interface EscalationAnalytics {
+  totalEscalations: number;
+  byChannel: Record<string, number>;
+  byTone: Record<string, number>;
+  byTargetType: Record<string, number>;
+  responseRate: number;
+  averageResponseTimeMinutes: number;
+  activeChains: number;
+  resolvedByResponse: number;
+}
+
+export interface ActiveEscalationChain {
+  targetId: string;
+  targetType: EscalationTargetType;
+  targetTitle: string;
+  ruleName: string;
+  ruleId: string;
+  currentStep: number;
+  totalSteps: number;
+  status: EscalationStatus;
+  lastEscalatedAt: Date;
+  nextStepAt?: Date;
 }
 
 // ── Accountability Scores & Streaks ──

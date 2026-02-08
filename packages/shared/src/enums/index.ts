@@ -123,6 +123,15 @@ export enum EscalationTargetType {
   ACKNOWLEDGMENT = 'ACKNOWLEDGMENT',
 }
 
+export enum EscalationStatus {
+  PENDING = 'PENDING',
+  SENT = 'SENT',
+  DELIVERED = 'DELIVERED',
+  RESPONDED = 'RESPONDED',
+  CANCELLED = 'CANCELLED',
+  PAUSED = 'PAUSED',
+}
+
 // ── Briefings ──
 
 export enum BriefingType {

@@ -12,6 +12,7 @@ export class OverdueScannerProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.ESCALATION) private readonly escalationQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
   ) {
     super();
   }
@@ -43,6 +44,8 @@ export class OverdueScannerProcessor extends WorkerHost {
           targetId: commitment.id,
           targetType: 'COMMITMENT',
           ruleId: commitment.escalationRuleId,
+          stepOrder: 0,
+          retryCount: 0,
         });
       }
     }
@@ -68,6 +71,29 @@ export class OverdueScannerProcessor extends WorkerHost {
           targetId: action.id,
           targetType: 'ACTION_ITEM',
           ruleId: action.escalationRuleId,
+          stepOrder: 0,
+          retryCount: 0,
+        });
+      }
+    }
+
+    // Notify affected users
+    const affectedUserIds = new Set([
+      ...overdueCommitments.map((c) => c.userId),
+      ...overdueActions.map((a) => a.userId),
+    ]);
+
+    for (const userId of affectedUserIds) {
+      const userCommitments = overdueCommitments.filter((c) => c.userId === userId).length;
+      const userActions = overdueActions.filter((a) => a.userId === userId).length;
+
+      if (userCommitments > 0 || userActions > 0) {
+        await this.notificationQueue.add('send-notification', {
+          userId,
+          channel: 'IN_APP',
+          priority: 'HIGH',
+          title: 'Overdue items detected',
+          message: `${userCommitments} commitment(s) and ${userActions} action item(s) are now overdue with escalation rules.`,
         });
       }
     }

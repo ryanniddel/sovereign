@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsBoolean, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EscalationTrigger } from '@sovereign/shared';
 
@@ -8,6 +8,8 @@ class EscalationStepDto {
   delayMinutes: number;
   tone: string;
   messageTemplate?: string;
+  recipientEmail?: string;
+  recipientContactId?: string;
 }
 
 export class CreateEscalationRuleDto {
@@ -29,4 +31,18 @@ export class CreateEscalationRuleDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxRetries?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cooldownMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  stopOnResponse?: boolean;
 }
