@@ -1,0 +1,21 @@
+{
+  "name": "sovereign",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sovereign — Supreme Authority Over Your Time",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "dev:web": "turbo dev --filter=@sovereign/web",
+    "dev:api": "turbo dev --filter=@sovereign/api",
+    "db:generate": "turbo db:generate --filter=@sovereign/api",
+    "db:push": "turbo db:push --filter=@sovereign/api",
+    "db:migrate": "turbo db:migrate --filter=@sovereign/api",
+    "db:studio": "turbo db:studio --filter=@sovereign/api"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,739 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ════════════════════════════════════════════════════════════════
+// USERS & AUTHENTICATION
+// ════════════════════════════════════════════════════════════════
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  auth0Id   String   @unique @map("auth0_id")
+  timezone  String   @default("America/Chicago")
+  avatarUrl String?  @map("avatar_url")
+
+  // Working hours
+  workingHoursStart String @default("09:00") @map("working_hours_start")
+  workingHoursEnd   String @default("17:00") @map("working_hours_end")
+  defaultHourlyRate Float  @default(0) @map("default_hourly_rate")
+
+  // Psychometric profiles (optional, stored as JSON)
+  discD             Float?  @map("disc_d")
+  discI             Float?  @map("disc_i")
+  discS             Float?  @map("disc_s")
+  discC             Float?  @map("disc_c")
+  kolbeProfile      String? @map("kolbe_profile")
+  mbtiType          String? @map("mbti_type")
+  enneagramType     Int?    @map("enneagram_type")
+  bigFiveOpenness        Float? @map("big_five_openness")
+  bigFiveConscientiousness Float? @map("big_five_conscientiousness")
+  bigFiveExtraversion    Float? @map("big_five_extraversion")
+  bigFiveAgreeableness   Float? @map("big_five_agreeableness")
+  bigFiveNeuroticism     Float? @map("big_five_neuroticism")
+
+  // Briefing preferences
+  morningBriefingTime String @default("07:00") @map("morning_briefing_time")
+  nightlyReviewTime   String @default("21:00") @map("nightly_review_time")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  contacts               Contact[]
+  contactTiers            ContactTier[]
+  calendarEvents          CalendarEvent[]
+  meetings               Meeting[]
+  commitments            Commitment[]
+  actionItems            ActionItem[]
+  agreements             Agreement[]
+  escalationRules        EscalationRule[]
+  escalationLogs         EscalationLog[]
+  accountabilityScores   AccountabilityScore[]
+  streaks                Streak[]
+  briefings              Briefing[]
+  notificationPreferences NotificationPreference[]
+  focusModes             FocusMode[]
+  dailyCloseouts         DailyCloseout[]
+
+  @@map("users")
+}
+
+// ════════════════════════════════════════════════════════════════
+// CONTACTS & RELATIONSHIP LAYER
+// ════════════════════════════════════════════════════════════════
+
+model ContactTier {
+  id       String @id @default(cuid())
+  userId   String @map("user_id")
+  name     String
+  priority Int    @default(0)
+
+  // Behavioral rules
+  escalationDelayMinutes Int    @default(0) @map("escalation_delay_minutes")
+  calendarAccessLevel    String @default("standard") @map("calendar_access_level")
+  communicationPriority  String @default("normal") @map("communication_priority")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts Contact[]
+
+  @@unique([userId, name])
+  @@map("contact_tiers")
+}
+
+model Contact {
+  id      String @id @default(cuid())
+  userId  String @map("user_id")
+  email   String
+  name    String
+  phone   String?
+  company String?
+  title   String?
+  tierId  String? @map("tier_id")
+
+  // DISC profile
+  discD Float? @map("disc_d")
+  discI Float? @map("disc_i")
+  discS Float? @map("disc_s")
+  discC Float? @map("disc_c")
+
+  // Relationship
+  relationshipScore Float    @default(50) @map("relationship_score")
+  lastInteractionAt DateTime? @map("last_interaction_at")
+
+  // External CRM
+  nimbleCrmId String? @map("nimble_crm_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier                ContactTier?         @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  meetingParticipants MeetingParticipant[]
+  escalationLogs      EscalationLog[]
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@map("contacts")
+}
+
+// ════════════════════════════════════════════════════════════════
+// CALENDAR & EVENTS
+// ════════════════════════════════════════════════════════════════
+
+enum CalendarEventType {
+  MEETING
+  FOCUS_BLOCK
+  TRAVEL
+  PERSONAL
+  ADMIN
+  BREAK
+}
+
+enum CalendarSource {
+  SOVEREIGN
+  OUTLOOK
+  GOOGLE
+}
+
+model CalendarEvent {
+  id          String            @id @default(cuid())
+  userId      String            @map("user_id")
+  title       String
+  description String?
+  startTime   DateTime          @map("start_time")
+  endTime     DateTime          @map("end_time")
+  isAllDay    Boolean           @default(false) @map("is_all_day")
+  location    String?
+  eventType   CalendarEventType @default(MEETING) @map("event_type")
+  isProtected Boolean           @default(false) @map("is_protected")
+
+  // Recurrence
+  recurrenceRule String? @map("recurrence_rule")
+
+  // External sync
+  externalCalendarId String?        @map("external_calendar_id")
+  source             CalendarSource @default(SOVEREIGN)
+
+  // Link to meeting (if this event is a meeting)
+  meetingId String?  @unique @map("meeting_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startTime])
+  @@index([userId, eventType])
+  @@map("calendar_events")
+}
+
+// ════════════════════════════════════════════════════════════════
+// MEETING LIFECYCLE
+// ════════════════════════════════════════════════════════════════
+
+enum MeetingStatus {
+  REQUESTED
+  QUALIFYING
+  QUALIFIED
+  SCHEDULED
+  PREP_SENT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  AUTO_CANCELLED
+}
+
+enum MeetingType {
+  DECISION
+  ONE_ON_ONE
+  BOARD
+  INVESTOR
+  TEAM
+  EXTERNAL
+  VENDOR
+  INTERVIEW
+  ALL_HANDS
+}
+
+enum QualifiedBy {
+  AI_EA
+  USER
+  AUTO
+}
+
+model Meeting {
+  id          String        @id @default(cuid())
+  userId      String        @map("user_id")
+  title       String
+  description String?
+  status      MeetingStatus @default(REQUESTED)
+
+  // Modern Meeting Standard
+  purpose          String?
+  decisionRequired String? @map("decision_required")
+
+  // Agenda & Pre-reads
+  agendaUrl           String?   @map("agenda_url")
+  agendaSubmittedAt   DateTime? @map("agenda_submitted_at")
+  preReadUrl          String?   @map("pre_read_url")
+  preReadDistributedAt DateTime? @map("pre_read_distributed_at")
+  preReadDeadline     DateTime? @map("pre_read_deadline")
+
+  // Qualification
+  isQualified     Boolean      @default(false) @map("is_qualified")
+  qualifiedAt     DateTime?    @map("qualified_at")
+  qualifiedBy     QualifiedBy? @map("qualified_by")
+  rejectionReason String?      @map("rejection_reason")
+
+  // Meeting details
+  meetingType             MeetingType? @map("meeting_type")
+  estimatedDurationMinutes Int         @default(30) @map("estimated_duration_minutes")
+  actualDurationMinutes   Int?         @map("actual_duration_minutes")
+  meetingCost             Float?       @map("meeting_cost")
+  hourlyRate              Float?       @map("hourly_rate")
+
+  // Post-meeting
+  transcriptUrl String?  @map("transcript_url")
+  recapContent  String?  @map("recap_content")
+  rating        Int?     // 1-5
+  valueScore    Int?     @map("value_score") // 1-5
+  wasNecessary  Boolean? @map("was_necessary")
+
+  // Recurring governance
+  isRecurring      Boolean   @default(false) @map("is_recurring")
+  recurringGroupId String?   @map("recurring_group_id")
+  nextReviewDate   DateTime? @map("next_review_date")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEvent CalendarEvent?
+  participants  MeetingParticipant[]
+  commitments   Commitment[]
+  actionItems   ActionItem[]
+  agreements    Agreement[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([recurringGroupId])
+  @@map("meetings")
+}
+
+enum ParticipantRole {
+  ORGANIZER
+  REQUIRED
+  OPTIONAL
+}
+
+model MeetingParticipant {
+  id        String          @id @default(cuid())
+  meetingId String          @map("meeting_id")
+  contactId String?         @map("contact_id")
+  email     String
+  name      String
+  role      ParticipantRole @default(REQUIRED)
+
+  // Acknowledgment
+  hasAcknowledged    Boolean   @default(false) @map("has_acknowledged")
+  acknowledgedAt     DateTime? @map("acknowledged_at")
+  optedOutOfRecording Boolean  @default(false) @map("opted_out_of_recording")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  meeting Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([meetingId, email])
+  @@map("meeting_participants")
+}
+
+// ════════════════════════════════════════════════════════════════
+// ACCOUNTABILITY ENGINE
+// ════════════════════════════════════════════════════════════════
+
+enum CommitmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  RESCHEDULED
+  DELEGATED
+}
+
+enum OwnerType {
+  USER
+  CONTACT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Commitment {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  meetingId String?          @map("meeting_id")
+  ownerId   String           @map("owner_id")
+  ownerType OwnerType        @map("owner_type")
+  title     String
+  description String?
+  dueDate   DateTime         @map("due_date")
+  status    CommitmentStatus @default(PENDING)
+  completedAt DateTime?      @map("completed_at")
+  priority  Priority         @default(MEDIUM)
+
+  // Accountability
+  affectsScore Boolean @default(true) @map("affects_score")
+
+  // Escalation
+  escalationRuleId      String?   @map("escalation_rule_id")
+  currentEscalationLevel Int      @default(0) @map("current_escalation_level")
+  lastEscalatedAt       DateTime? @map("last_escalated_at")
+
+  // Delegation
+  isDelegated                  Boolean   @default(false) @map("is_delegated")
+  delegatedToId                String?   @map("delegated_to_id")
+  delegatedAt                  DateTime? @map("delegated_at")
+  delegatorRetainsAccountability Boolean @default(true) @map("delegator_retains_accountability")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting        Meeting?        @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  escalationRule EscalationRule? @relation(fields: [escalationRuleId], references: [id], onDelete: SetNull)
+  escalationLogs EscalationLog[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([ownerId, ownerType])
+  @@map("commitments")
+}
+
+enum ActionItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  RESCHEDULED
+  DELEGATED
+}
+
+enum ExternalSystem {
+  TRELLO
+  CLICKUP
+}
+
+model ActionItem {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  meetingId String?          @map("meeting_id")
+  title     String
+  description String?
+  ownerId   String           @map("owner_id")
+  ownerType OwnerType        @map("owner_type")
+  dueDate   DateTime         @map("due_date")
+  status    ActionItemStatus @default(PENDING)
+  completedAt DateTime?      @map("completed_at")
+  priority  Priority         @default(MEDIUM)
+
+  // External system sync
+  externalSystem   ExternalSystem? @map("external_system")
+  externalSystemId String?         @map("external_system_id")
+
+  // Escalation
+  escalationRuleId      String?   @map("escalation_rule_id")
+  currentEscalationLevel Int      @default(0) @map("current_escalation_level")
+  lastEscalatedAt       DateTime? @map("last_escalated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting        Meeting?        @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  escalationRule EscalationRule? @relation(fields: [escalationRuleId], references: [id], onDelete: SetNull)
+  escalationLogs EscalationLog[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([ownerId, ownerType])
+  @@map("action_items")
+}
+
+model Agreement {
+  id          String  @id @default(cuid())
+  userId      String  @map("user_id")
+  meetingId   String? @map("meeting_id")
+  title       String
+  description String
+  parties     Json    @default("[]") // string array
+  agreedAt    DateTime @map("agreed_at")
+  isActive    Boolean @default(true) @map("is_active")
+
+  // Superseded tracking
+  supersededById String? @map("superseded_by_id")
+
+  // Knowledge base
+  addedToKnowledgeBase Boolean @default(false) @map("added_to_knowledge_base")
+  knowledgeBaseId      String? @map("knowledge_base_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting      Meeting?   @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  supersededBy Agreement? @relation("AgreementSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes   Agreement[] @relation("AgreementSupersession")
+
+  @@index([userId, isActive])
+  @@map("agreements")
+}
+
+// ════════════════════════════════════════════════════════════════
+// ESCALATION ENGINE
+// ════════════════════════════════════════════════════════════════
+
+enum EscalationTrigger {
+  OVERDUE
+  NO_ACKNOWLEDGMENT
+  MISSED_DEADLINE
+  MISSED_PRE_READ
+  NIGHTLY_CLOSEOUT
+}
+
+model EscalationRule {
+  id          String            @id @default(cuid())
+  userId      String            @map("user_id")
+  name        String
+  description String?
+  triggerType EscalationTrigger @map("trigger_type")
+
+  // Steps stored as JSON array of { stepOrder, channel, delayMinutes, tone, messageTemplate }
+  steps Json @default("[]")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commitments    Commitment[]
+  actionItems    ActionItem[]
+  escalationLogs EscalationLog[]
+
+  @@index([userId, isActive])
+  @@map("escalation_rules")
+}
+
+enum EscalationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PHONE_CALL
+  SLACK
+}
+
+enum EscalationTone {
+  WARM
+  PROFESSIONAL
+  DIRECT
+  URGENT
+  FINAL
+}
+
+enum EscalationTargetType {
+  COMMITMENT
+  ACTION_ITEM
+  MEETING_PREP
+  ACKNOWLEDGMENT
+}
+
+model EscalationLog {
+  id               String               @id @default(cuid())
+  userId           String               @map("user_id")
+  escalationRuleId String               @map("escalation_rule_id")
+  stepOrder        Int                  @map("step_order")
+  targetType       EscalationTargetType @map("target_type")
+
+  // Separate FKs for polymorphic target (one will be set based on targetType)
+  commitmentId String? @map("commitment_id")
+  actionItemId String? @map("action_item_id")
+
+  // Recipient
+  recipientEmail     String  @map("recipient_email")
+  recipientContactId String? @map("recipient_contact_id")
+
+  // Delivery
+  channel EscalationChannel
+  tone    EscalationTone
+
+  sentAt             DateTime  @map("sent_at")
+  deliveredAt        DateTime? @map("delivered_at")
+  responseReceivedAt DateTime? @map("response_received_at")
+  responseContent    String?   @map("response_content")
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  escalationRule EscalationRule  @relation(fields: [escalationRuleId], references: [id], onDelete: Cascade)
+  contact        Contact?        @relation(fields: [recipientContactId], references: [id], onDelete: SetNull)
+  commitment     Commitment?     @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  actionItem     ActionItem?     @relation(fields: [actionItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, sentAt])
+  @@index([targetType, commitmentId])
+  @@index([targetType, actionItemId])
+  @@map("escalation_logs")
+}
+
+// ════════════════════════════════════════════════════════════════
+// ACCOUNTABILITY SCORES & STREAKS
+// ════════════════════════════════════════════════════════════════
+
+model AccountabilityScore {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  date   DateTime @db.Date
+
+  score               Float @default(0)
+  commitmentsMade     Int   @default(0) @map("commitments_made")
+  commitmentsDelivered Int  @default(0) @map("commitments_delivered")
+  commitmentsMissed   Int   @default(0) @map("commitments_missed")
+  onTimeRate          Float @default(0) @map("on_time_rate")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("accountability_scores")
+}
+
+enum StreakType {
+  DAILY_CLOSEOUT
+  COMMITMENT_DELIVERY
+  MEETING_PREP
+  ON_TIME
+}
+
+model Streak {
+  id     String     @id @default(cuid())
+  userId String     @map("user_id")
+  type   StreakType
+
+  currentCount   Int      @default(0) @map("current_count")
+  longestCount   Int      @default(0) @map("longest_count")
+  lastActivityAt DateTime @map("last_activity_at")
+  brokenAt       DateTime? @map("broken_at")
+  startedAt      DateTime @map("started_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("streaks")
+}
+
+// ════════════════════════════════════════════════════════════════
+// BRIEFINGS
+// ════════════════════════════════════════════════════════════════
+
+enum BriefingType {
+  MORNING
+  NIGHTLY
+}
+
+enum DeliveryChannel {
+  IN_APP
+  EMAIL
+  VOICE
+  SMS
+}
+
+model Briefing {
+  id     String      @id @default(cuid())
+  userId String      @map("user_id")
+  type   BriefingType
+  date   DateTime    @db.Date
+
+  // Content stored as structured JSON
+  content Json @default("{}")
+
+  // Delivery
+  deliveryChannel DeliveryChannel @default(IN_APP) @map("delivery_channel")
+  deliveredAt     DateTime?       @map("delivered_at")
+  completedAt     DateTime?       @map("completed_at")
+  isCompleted     Boolean         @default(false) @map("is_completed")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, date])
+  @@index([userId, date])
+  @@map("briefings")
+}
+
+// ════════════════════════════════════════════════════════════════
+// NOTIFICATION PREFERENCES
+// ════════════════════════════════════════════════════════════════
+
+enum NotificationContext {
+  WORK_HOURS
+  AFTER_HOURS
+  FOCUS_MODE
+  ALL
+}
+
+model NotificationPreference {
+  id      String             @id @default(cuid())
+  userId  String             @map("user_id")
+  channel EscalationChannel
+  isEnabled Boolean          @default(true) @map("is_enabled")
+  context NotificationContext @default(ALL)
+  priority Priority          @default(MEDIUM)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, context])
+  @@map("notification_preferences")
+}
+
+// ════════════════════════════════════════════════════════════════
+// FOCUS MODES
+// ════════════════════════════════════════════════════════════════
+
+enum FocusModeTrigger {
+  MANUAL
+  CALENDAR_EVENT
+  SCHEDULED
+}
+
+model FocusMode {
+  id          String @id @default(cuid())
+  userId      String @map("user_id")
+  name        String
+  description String?
+  isActive    Boolean @default(false) @map("is_active")
+
+  // What gets through
+  allowCriticalOnly Boolean @default(true) @map("allow_critical_only")
+  allowMeetingPrep  Boolean @default(false) @map("allow_meeting_prep")
+  allowAll          Boolean @default(false) @map("allow_all")
+
+  // Trigger
+  triggerType              FocusModeTrigger  @default(MANUAL) @map("trigger_type")
+  triggerCalendarEventType CalendarEventType? @map("trigger_calendar_event_type")
+
+  // 2FA override (Ulysses contract)
+  requires2faOverride Boolean @default(true) @map("requires_2fa_override")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("focus_modes")
+}
+
+// ════════════════════════════════════════════════════════════════
+// DAILY CLOSEOUT GATE
+// ════════════════════════════════════════════════════════════════
+
+model DailyCloseout {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  date   DateTime @db.Date
+
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+
+  // Snapshot
+  openItemsAtStart  Int @default(0) @map("open_items_at_start")
+  itemsCompleted    Int @default(0) @map("items_completed")
+  itemsRescheduled  Int @default(0) @map("items_rescheduled")
+  itemsDelegated    Int @default(0) @map("items_delegated")
+
+  // Reflection
+  reflectionNotes String? @map("reflection_notes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("daily_closeouts")
+}

@@ -1,0 +1,689 @@
+
+SOVEREIGN
+Supreme Authority Over Your Time
+────────────────────────────────────────
+PRODUCT REQUIREMENTS DOCUMENT
+Version 1.0  |  February 2026
+Classification: Confidential
+Prepared for: Ryan, CEO — Diversified Botanics
+
+Table of Contents
+
+
+
+1. Executive Summary
+Sovereign is a premium calendar, meeting lifecycle management, and accountability platform designed to give high-performance executives supreme authority over their time, commitments, and execution. It is not a calendar app with features bolted on. It is an executive command layer that sits above project management tools, enforces meeting discipline through the Modern Meeting Standard, tracks commitments with multi-channel escalation, and uses AI-powered intelligence to continuously optimize how time is allocated.
+The product will be built first as a single-user tool for the CEO of Diversified Botanics. Once it exceeds expectations, it will be released commercially via the Apple App Store and web, monetized as a premium subscription product ($30–50/month individual, $75–150/seat teams).
+
+1.1 Core Value Proposition
+	•	Meeting Deflection: AI-powered knowledge base resolves inquiries before they become meetings
+	•	Meeting Lifecycle Governance: Every meeting passes through qualification gates, agenda/pre-read enforcement, and the Modern Meeting Standard
+	•	Commitment Accountability: Three-tier tracking (action items, agreements, commitments) with multi-channel escalation and public scoring
+	•	Contact Intelligence: DISC-adapted communication, relationship scoring, and tier-based access control
+	•	Cognitive Optimization: Psychometric profiles (DISC, Kolbe, MBTI, Enneagram, Big Five) inform scheduling, meeting structure, and communication strategy
+	•	Self-Improving System: Learns from user behavior to optimize escalation channels, notification timing, and meeting ROI
+
+1.2 Competitive Positioning
+No existing product combines these capabilities. The closest analogues are:
+Product
+What It Does
+What Sovereign Does Better
+Calendly ($12/mo)
+Scheduling links
+Full meeting lifecycle with deflection, governance, and post-meeting automation
+Motion ($19/mo)
+AI calendar
+Psychometric optimization, accountability engine, commitment tracking
+Reclaim ($15/mo)
+Time blocking
+Customizable focus modes with 2FA override, energy management, location-aware travel
+Monday/Asana
+Project management
+Sovereign is the executive command layer above PM tools, not a replacement
+Granola
+Meeting transcription
+End-to-end meeting intelligence: capture, parse, distribute, track, enforce
+
+2. Product Identity
+2.1 Name
+SOVEREIGN — Supreme authority over your time, your commitments, your execution. Unapologetically powerful.
+2.2 Emotional Territory
+	•	Intelligence and precision
+	•	Power and control
+	•	Exclusivity and luxury
+2.3 Design Philosophy
+	•	Minimal and clean while remaining pleasant and familiar
+	•	Dark mode and light mode available
+	•	Must feel like a very luxury, very exclusive tool
+	•	Every pixel, animation, and micro-interaction signals premium
+	•	Not playful, not generic — sophisticated and authoritative
+2.4 Domain Strategy
+Primary candidates: getsovereign.com, sovereignapp.com, sovereign.ai, usesovereign.com, svrgn.com. Final selection pending availability verification and trademark clearance.
+
+3. User & Platform Strategy
+3.1 Target User
+Initial: Single user (CEO, Diversified Botanics). Commercial launch: High-performance executives, founders, and team leaders who value time as their most critical resource and are willing to pay a premium for tools that protect it.
+3.2 Platform Hierarchy
+Platform
+Role
+Framework
+Web Application
+Primary interface — command center, analytics, configuration, deep work
+Next.js 14+ (React, TypeScript)
+Desktop Application
+Native app, full-featured, offline capable
+Electron (shared React codebase)
+iOS Mobile App
+Full-featured (not companion), voice capture, notifications, on-the-go
+React Native (Expo)
+
+All three platforms are fully capable with no feature disparity. UX is optimized per form factor but functionality is identical.
+3.3 Offline Capability
+Prioritized offline subset:
+	•	Voice capture and task creation (queued for AI processing on reconnect)
+	•	Calendar viewing and manual edits
+	•	Meeting prep review (pre-cached)
+	•	Task creation and modification
+Escalation, notifications, integrations, and AI processing require connectivity and queue on reconnect.
+Sync Strategy: Near real-time polling (30–60 second intervals). AI-mediated conflict resolution when offline edits collide with online changes — the system presents conflicts to the user for resolution rather than auto-resolving.
+
+4. Core Feature Specifications
+4.1 Calendar & Scheduling
+4.1.1 Calendar Views
+All views follow a nesting protocol with drill-down navigation:
+View
+Granularity
+Drill-Down
+Daily
+By hour
+Click hour → event detail
+Weekly
+By day
+Click day → daily view
+Monthly
+By week
+Click week → weekly view
+Quarterly
+By month
+Click month → monthly view
+Command Center
+Unified dashboard: calendar + tasks + overdue + commitments + accountability score
+All widgets are interactive
+Agenda List
+Linear list of events, tasks, and commitments for the day
+Sortable and filterable
+
+4.1.2 Time Blocking & Protection
+	•	Fully customizable in-app by user
+	•	Protect specific hours as unbookable (morning routine, family time, deep work)
+	•	Intelligent meeting batching to preserve contiguous focus blocks
+	•	Energy management rules (e.g., no high-stakes meetings after configurable time)
+	•	Travel and buffer time customizable down to 5-minute increments
+	•	Integration with maps/location services for estimated travel time between in-person meetings
+4.1.3 Calendar as Source of Truth
+Sovereign owns time and attention. It does not own task data. Tasks live in Trello/ClickUp; Sovereign owns the calendar slot, tracks whether work was completed, escalates if not, and pushes work artifacts to the appropriate external system. In any sync conflict between Sovereign and external systems, Sovereign wins.
+
+4.2 Meeting Lifecycle Management
+Every meeting passes through a governed lifecycle based on the Modern Meeting Standard (Al Pittampalli) and Cameron Herold frameworks.
+4.2.1 Pre-Booking: Knowledge Base Deflection
+When someone attempts to book a meeting, the system first queries the knowledge base (via AnythingLLM API) to determine if the requester’s need can be resolved without consuming the user’s time.
+	•	Knowledge base is self-learning: every post-meeting recap, decision, and action item feeds back in
+	•	If the knowledge base provides an answer, the requester is given the information
+	•	If the requester still needs a meeting after receiving the answer, the request escalates to the AI EA
+4.2.2 Pre-Booking: Qualification Gates
+	•	Different meeting types have different requirements
+	•	An agenda is mandatory — no agenda, no meeting
+	•	Pre-reads are mandatory — distributed 24 hours in advance or the meeting auto-cancels
+	•	All attendees must be necessary — no spectators
+	•	Meetings exist to support a decision, not to brainstorm or share status
+	•	The AI EA (external service) makes the final approval/denial decision via API
+4.2.3 Pre-Meeting: Preparation Package
+	•	All participants receive an agenda and pre-read materials 24 hours before the meeting
+	•	If any participant has not received the package 24 hours before, the meeting is auto-canceled
+	•	Contact intelligence surfaces for the user: last interaction, open commitments, delivery track record, psychometric profile
+4.2.4 During Meeting: Capture & Intelligence
+	•	Transcription via Granola integration across Zoom, Teams, and in-person (mobile mic capture)
+	•	Participants can opt out of recording
+	•	Consent notices follow best practices per jurisdiction
+4.2.5 Post-Meeting: Automated Distribution
+AI processes meeting transcripts to automatically extract:
+	•	Action items with owners and deadlines
+	•	Agreements (decisions/principles governing future behavior)
+	•	Commitments (promises carrying accountability weight)
+	•	Structured recap following the Modern Meeting format
+	•	Flags decisions that should feed back into the knowledge base
+	•	Detects when something discussed contradicts a prior agreement
+
+Distribution rules:
+	•	Everyone receives the overview; each participant also receives a tailored view of their specific action items/commitments
+	•	Distribution channel is configurable per recipient (email, Slack, Teams, in-platform)
+	•	Recipients must acknowledge receipt and agree to their commitments
+	•	If not acknowledged after 24 hours: send a reminder
+	•	If not acknowledged after 48 hours: send final reminder, then close. The record shows who did not engage
+	•	Meeting cost (calculated from attendee count × hourly rate × duration) appears on every invitation and follow-up
+4.2.6 Post-Meeting: Rating & Feedback
+	•	System prompts a post-meeting rating: Was this necessary? Value delivered (1–5)? Quick tags
+	•	Rating data is shared with all participants
+	•	Feeds into AI insight engine to identify patterns and recommend meeting elimination
+4.2.7 Recurring Meeting Governance
+	•	System automatically triggers review of every recurring meeting on a configurable cadence (30/60/90 days)
+	•	AI analyzes whether the recurring meeting is generating decisions and commitments or just consuming time
+	•	Auto-cancels if no one confirms continued value within the review window
+4.2.8 Organization-Wide Meeting Policies
+	•	Meeting-free zones (e.g., No-Meeting Wednesdays) — toggleable on/off at org level
+	•	No maximum attendee limits enforced
+
+4.3 Accountability Engine
+4.3.1 Three-Tier Tracking Model
+Type
+Definition
+Behavior
+Action Items
+Discrete tasks with an owner and deadline
+Pushed to Trello/ClickUp, tracked with escalation, closed when complete
+Agreements
+Decisions or principles governing future behavior
+Stored in knowledge base permanently, referenced in future meetings, surfaced in briefings
+Commitments
+Promises made by individuals carrying accountability weight
+Tracked on public scoreboard, affect streak/score, carry escalation sequences
+
+Contradiction Detection: The system detects when a new action item, discussion, or proposal contradicts a prior agreement and flags it in real time.
+4.3.2 Escalation Engine
+All escalation variables are fully customizable in-platform by the user. Users build visual escalation workflows defining channels, cadence, and tone per task type, priority level, or contact category.
+Available escalation channels:
+	•	In-app notification
+	•	Email
+	•	SMS (via Twilio)
+	•	Phone call (via Bland.ai / Retell)
+	•	Slack message
+
+Escalation for the user: Configurable ladder with increasing urgency. The system will not allow the user to close out the day without addressing all open items.
+Escalation for others: Configurable ladder sent to people who owe deliverables. Tone adapts to the recipient’s DISC profile where available. Final escalations carry implicit consequences (“This commitment is now overdue and has been logged”).
+Self-improving: The system learns from user behavior. If the user consistently ignores email but responds to SMS, it learns to escalate directly to SMS. If certain contacts always deliver on time, it reduces their reminder frequency.
+4.3.3 Public Accountability Tracker
+	•	Visible to the entire organization (commercial version)
+	•	Shows aggregate performance, not specific task details
+	•	Bidirectional: user sees their own score AND the delivery rates of others
+	•	Scoring: numerical score AND streak system
+	•	Trend lines showing improvement or decline over time
+	•	Benchmarking against historical personal performance
+	•	Leverages proven psychological principles: loss aversion, social proof, commitment consistency (Cialdini), streak maintenance, public commitment theory (Deutsch & Gerard)
+4.3.4 Nightly Close-Out Gate
+The system enforces a hard gate: the day cannot be “closed” until every open item is addressed — completed, rescheduled, or delegated. No orphaned commitments.
+
+4.4 Contact Intelligence & Relationship Layer
+4.4.1 Contact Enrichment
+	•	When someone requests a meeting, the system pulls context from Nimble CRM
+	•	Surfaces: last meeting, what was discussed, open commitments in both directions, delivery track record, psychometric profile
+	•	New contacts accepted through the meeting flow are auto-added to Nimble and auto-enriched
+4.4.2 Relationship Scoring
+AI-generated relationship health score based on:
+	•	Frequency of interaction
+	•	Commitment delivery rates in both directions
+	•	Meeting outcomes and ratings
+	•	Responsiveness to communications
+4.4.3 Contact Segmentation (Tiers)
+Customizable tiers that affect how the system treats contacts:
+	•	Tier assignment affects escalation rules, calendar access speed, and communication priority
+	•	As deep and granular or as shallow as the user wants
+	•	Fully customizable tier definitions, names, and behavioral rules
+4.4.4 DISC-Adapted Communication
+All outbound communications (reminders, escalations, meeting prep distribution, follow-ups) adapt tone and framing to the recipient’s DISC profile where available. Messages appear to come from the user personally.
+
+4.5 Voice Capture & AI Interaction Surfaces
+4.5.1 Voice as First-Class Interface
+Anything the user can do in the app, they can do by speaking. Voice is a universal interface, not an add-on. The NLP/AI parsing layer sits at the core of the system.
+Voice input channels:
+	•	Dedicated in-platform voice capture button
+	•	SMS voice message to the platform
+	•	Carbon voice input integration
+
+Intelligent parsing example:
+User says: “Follow up with Jake at MIT45 about the Q3 distribution numbers by next Thursday, and if he doesn’t respond by Tuesday, send him a reminder.”
+System automatically: creates the follow-up task, assigns it to Jake (identified from contacts/knowledge base), sets the deadline, configures the Tuesday escalation trigger, and pushes the task to the appropriate ClickUp/Trello board.
+4.5.2 Three AI Interaction Surfaces
+Surface
+Use Case
+Speed
+Persistent Chat Interface
+Conversational: ask questions, give complex commands, review analytics
+Deliberate
+Natural Language Command Bar
+Rapid-fire: quick actions, navigation, search (Spotlight/Raycast-style)
+Fast
+Voice
+Hands-free: capture on walks, in car, during meetings
+Immediate
+
+All three surfaces are backed by the same AI routing layer and can trigger any system action.
+4.5.3 AI Personality
+	•	Configurable personality and tone per user
+	•	Adapts communication style based on context and recipient
+	•	When commercialized, each user can customize their AI’s voice and behavior
+
+4.6 Daily Briefing & Nightly Review
+4.6.1 Morning Briefing (Mandatory, Customizable)
+	•	Today’s schedule with prep notes for each meeting
+	•	Outstanding commitments due today (user’s and others’ to user)
+	•	Overdue items carried forward with escalation status
+	•	Key metrics from the accountability tracker (streak, score)
+	•	AI-generated insight (e.g., “Today is meeting-heavy — your only deep work window is 2–4pm, protect it”)
+	•	Weather and travel time alerts for in-person meetings
+	•	Priority ranking — AI recommends what matters most today
+4.6.2 Nightly Review (Mandatory, Customizable)
+	•	Every open item must be addressed: completed, rescheduled, or delegated
+	•	Commitment scorecard for the day (promised vs. delivered)
+	•	Prep triggers for tomorrow (pre-reads sent, agendas confirmed)
+	•	Reflection prompt (what went well, what didn’t)
+	•	Hard gate: system will not close the day until the review is complete
+4.6.3 Delivery Channels (All Configurable)
+	•	In-app dashboard
+	•	Email digest
+	•	Voice briefing (AI reads it to the user)
+	•	SMS summary
+
+4.7 Focus Modes & Notification Intelligence
+4.7.1 Customizable Focus States
+Users create custom focus states with configurable triggers (manual toggle or automatic based on calendar events). Examples:
+	•	Deep Work — suppresses everything except true emergencies
+	•	Meeting Mode — only surfaces prep for the next meeting
+	•	Available — full notification flow
+	•	Off Hours — personal time protection with critical override only
+4.7.2 AI Notification Batching
+The system uses AI to intelligently rank and batch notifications. Low-priority updates are held and delivered as a single digest at natural break points rather than interrupting the user individually.
+4.7.3 Critical Override (2FA Required)
+To override any focus mode requires 2FA: the user AND a second person must both confirm the override is genuinely critical. This is a commitment device — the user cannot self-interrupt on impulse.
+4.7.4 Channel Preferences
+Fully customizable per context. Example: during work hours escalate via Slack; after hours, only SMS for critical items.
+
+4.8 Delegation & Routing
+	•	Post-meeting action items assigned to others: created in Sovereign, pushed to Trello/ClickUp, assignee notified with full context and acknowledgment requirement
+	•	User can reassign tasks to named contacts with a single action; automatic notification to delegate with full context
+	•	Delegation tracking is configurable per task: commitment either leaves the user’s accountability score or stays as “delegated but accountable”
+	•	Upward delegation protection: the system detects when people attempt to push work back to the user and flags/blocks it. Work assigned to others cannot be pushed back.
+
+4.9 Search & Navigation
+4.9.1 Universal Search
+The command bar searches across ALL data types simultaneously and returns ranked results. Typing “Jake Q3” returns: the meeting where Q3 projections were discussed, Jake’s open commitments, relevant agreements, and Jake’s contact card.
+4.9.2 Natural Language Queries
+Users can ask natural language questions and receive structured, AI-generated answers:
+	•	“What did I commit to last week that I haven’t delivered?”
+	•	“Show me every meeting with Jake in the last 90 days and their outcomes”
+	•	“What agreements have we made about distribution pricing?”
+4.9.3 Saved Filters & Keyboard Navigation
+	•	Users create saved search filters for frequent queries
+	•	Extensive keyboard shortcuts for power-user navigation (Superhuman-style)
+
+4.10 Analytics, Psychometrics & AI Insights
+4.10.1 Personal Analytics
+	•	Time allocation breakdown (deep work vs. meetings vs. admin vs. travel)
+	•	Meeting ROI (post-meeting ratings, value delivered)
+	•	Commitment velocity (average time from commitment made to delivered)
+	•	Deflection rate (percentage of meeting requests resolved by knowledge base)
+	•	Focus score (hours of uninterrupted deep work actually protected)
+4.10.2 Psychometric Integration
+Users can optionally upload psychometric profiles to optimize system behavior:
+	•	DISC, Enneagram, Myers-Briggs, Kolbe, Big Five Aspect Scale
+	•	Flow time tracking
+	•	Visual / auditory / kinesthetic learning style acknowledgment
+The system uses these profiles to optimize: scheduling decisions, meeting structures, work allocation, communication strategy, and flow state protection windows.
+4.10.3 Trend Analysis
+Daily, weekly, monthly, quarterly, and cumulative over time. The system identifies hidden patterns for optimization. Example: “Your commitment delivery rate drops when you exceed 6 meetings in a day.”
+4.10.4 AI-Generated Insights
+Proactive recommendations powered by data:
+	•	“You’ve had 3 meetings with this vendor in 60 days with no measurable outcome — consider eliminating”
+	•	“Your deep work blocks are being interrupted 2.3x more this month — here’s what’s causing it”
+	•	“Based on your patterns, moving your strategy sessions to mornings would improve output”
+AI recommendations for everything data-driven. Exportable reports for board presentations, personal reviews, or team distribution.
+4.10.5 AI Confidence Scoring
+When the AI parses a voice memo or generates a meeting recap, it displays a confidence score so the user knows when to double-check its work.
+
+4.11 Automation & Workflow Builder
+4.11.1 Pre-Built Templates
+Sovereign ships with opinionated default workflows:
+	•	CEO Operating System (user’s personal configuration, productized)
+	•	Sales Leader (heavy follow-up cadence, deal-stage tracking)
+	•	Founder Mode (investor meeting governance, board prep automation)
+	•	Operations Manager (cross-functional commitment tracking, recurring audit cycles)
+4.11.2 Custom Workflow Builder
+Users can create custom automation chains visually. The native builder handles 80%+ of use cases; Zapier is the exception, not the rule.
+4.11.3 Trigger Types
+	•	Time-based (every Monday at 7am)
+	•	Event-based (meeting booked, task overdue, commitment missed)
+	•	Condition-based (if calendar density exceeds X, if streak drops below Y)
+	•	Voice-triggered (“Sovereign, activate investor prep mode”)
+
+5. Integration Architecture
+Sovereign is the hub in a hub-and-spoke architecture. Data flows bidirectionally where specified. The external AI EA interacts with Sovereign via API endpoints and webhooks.
+Integration
+Direction
+Purpose
+Trello
+Bidirectional
+Task sync, action item push, status tracking
+ClickUp
+Bidirectional
+Task sync (different company), action item push, status tracking
+Microsoft Outlook
+Bidirectional
+Email, calendar sync (2-week import + forward)
+Microsoft Teams
+Bidirectional
+Messaging, notifications, meeting links, transcription
+OneDrive/SharePoint
+Read/Write
+Document storage for pre-reads, agendas, meeting materials
+Power Automate
+Outbound triggers
+Workflow triggers to Microsoft ecosystem
+Zoom
+Read + Control
+Meeting links, transcription via Granola, recording consent
+Twilio
+Outbound + Inbound
+SMS escalations, voice message input, 2-way reply handling
+Bland.ai / Retell
+Outbound
+AI voice calls for escalation
+Slack
+Bidirectional
+Notifications, escalations, team messaging
+Nimble CRM
+Bidirectional
+Contact management, auto-enrichment, relationship data
+Zapier
+Bidirectional
+Escape valve for edge-case integrations
+AnythingLLM
+API Query
+Knowledge base deflection, query without hosting data
+Granola
+Inbound
+Meeting transcription across Zoom, Teams, and in-person
+Deepgram
+Processing
+Voice-to-text transcription engine (low latency, high quality)
+Maps/Location Services
+Read
+Travel time estimation between in-person meetings
+External AI EA
+Bidirectional API
+Meeting approval/denial, scheduling parameter control, response routing
+
+6. AI Architecture
+6.1 Model Routing Layer
+A routing layer evaluates task complexity, latency requirements, and cost, then sends each AI task to the optimal model:
+Model Tier
+Models
+Use Cases
+Premium (Complex Reasoning)
+Claude, GPT-4o
+Meeting transcript analysis, contradiction detection, insight generation, psychometric-adapted messaging, complex NLP
+Standard (Routine Processing)
+Llama 3, Mistral (self-hosted)
+Routine parsing, simple classification, notification text generation, basic NLP, voice command parsing
+Specialized
+Deepgram
+Voice-to-text transcription
+
+6.2 Cost Management
+	•	Lighter models handle ~80% of tasks at minimal cost
+	•	Premium models handle ~20% requiring sophisticated reasoning
+	•	Caching for common knowledge base queries to reduce API calls
+	•	At commercial scale: users pay for AI consumption above base allocation (OpenRouter-style pass-through pricing)
+	•	Token budgeting per user tier
+6.3 AI Service Failure
+If the AI routing layer cannot reach any model: AI-dependent features pause gracefully and the user is notified. Rule-based logic continues operating (escalations fire on schedule, meeting gates enforce, calendar functions normally).
+
+7. Outbound Communication Engine
+7.1 Message Identity
+All outbound messages appear to come from the user personally. The system is invisible to recipients — they experience communication from the user, not from a tool.
+7.2 DISC-Adapted Tone
+Where a recipient’s DISC profile is available, the system adapts communication style:
+	•	High-D: Direct, bottom-line, action-oriented
+	•	High-I: Relationship-framed, enthusiastic, collaborative
+	•	High-S: Supportive, patient, clear expectations
+	•	High-C: Data-driven, detailed, precise
+7.3 Escalation Tone Progression
+Reminders start warm and professional, then become increasingly direct and urgent. Final escalations carry implicit consequences: “This commitment is now overdue and has been logged.”
+7.4 Reply Handling
+When someone responds to an automated message (e.g., “I need two more days”), the response is routed to the external AI EA for judgment. The user is notified only when human decision-making is required.
+7.5 Compliance
+	•	Mandatory unsubscribe/opt-out in all automated communications
+	•	Suppression list maintenance
+	•	Quiet hours respected by jurisdiction
+	•	CAN-SPAM and TCPA compliance
+
+8. Data Import & Migration
+Data Source
+Import Method
+Scope
+Calendar (Outlook)
+API integration
+2 weeks historical + all future events
+Contacts
+Bulk import from Nimble + Outlook
+All contacts; auto-build initial tiers from meeting frequency
+Tasks
+First sync from Trello + ClickUp
+All currently assigned tasks
+Knowledge Base
+API connection to AnythingLLM
+Query via API; Sovereign does not host the data
+Psychometric Profiles
+Manual input or standard export upload
+Optional, not required
+Historical Meetings
+Calendar analysis (2 weeks back)
+Build initial relationship scores, meeting frequency, time allocation baselines
+
+8.1 Onboarding
+	•	AI-guided onboarding that asks questions and configures the system
+	•	Pre-built templates and presets (CEO Mode, Sales Leader, Founder Mode, Operations Manager)
+	•	Progressive disclosure — start simple, unlock complexity as the user matures
+
+9. Security & Authentication
+Requirement
+Specification
+Authentication
+Passcode + initial MFA via Auth0
+Biometric
+Face ID / Touch ID on mobile
+Data Residency
+US-only (AWS US regions)
+Encryption
+Server-side encryption at rest and in transit (launch); E2EE roadmap for enterprise
+Data Export
+Full data portability — users can export all their data
+Role-Based Access
+Fully customizable permission matrices per organization
+Focus Mode Override
+Requires 2FA: user + second person confirmation
+Uptime SLA
+99.95% (4.38 hours max downtime per year)
+Audit Logging
+Full audit log on every sync conflict and resolution
+SSO
+SAML/OIDC ready via Auth0 for enterprise sales
+
+10. Performance Requirements
+Metric
+Target
+Measurement
+Command Center Load
+< 1.5 seconds
+Time to interactive for dashboard with all widgets
+Universal Search Latency
+< 375ms
+Time from query to ranked results displayed
+Notification Delivery
+< 45 seconds
+Time from escalation trigger to message delivered
+Uptime
+99.95%
+Measured monthly, excluding scheduled maintenance
+Sync Frequency
+30–60 seconds
+Near real-time polling for calendar and task sync
+Voice-to-Action
+< 3 seconds
+Time from voice input end to parsed action confirmation
+
+11. Error Handling & Graceful Degradation
+11.1 Integration Failures
+When an external service is unavailable: queue the action and retry automatically with exponential backoff. Alert the user only after repeated failures (configurable threshold).
+11.2 AI Service Failures
+If the AI routing layer cannot reach any model: AI-dependent features pause and the user is notified. All rule-based logic continues operating normally.
+11.3 Data Integrity
+In any bidirectional sync conflict: Sovereign’s version wins. Full audit log records every sync conflict, the conflicting values, and the resolution applied.
+11.4 User Feedback Mechanisms
+	•	In-app bug submission for commercial users
+	•	Feature request voting and roadmap visibility
+
+12. Technology Stack
+Layer
+Technology
+Justification
+Frontend (Web)
+Next.js 14+, React, TypeScript, Tailwind CSS, Framer Motion, shadcn/ui
+SSR, App Router for nested views, luxury micro-interactions, fully customizable components
+Desktop
+Electron
+Shared React codebase, offline SQLite cache, proven at scale
+Mobile (iOS)
+React Native (Expo)
+Shared business logic, OTA updates, native modules for voice/Face ID/location
+Backend (Core)
+NestJS (Node.js, TypeScript)
+Modular architecture, TypeScript end-to-end, WebSocket/SSE, decorator-based DI, BullMQ integration
+Backend (AI)
+Python FastAPI microservices
+AI/ML ecosystem, independent scaling, model routing isolation
+Database
+PostgreSQL
+Relational data model, JSONB for flexible schema, row-level security for multi-tenancy, full-text search
+Cache/Queue
+Redis + BullMQ
+Caching, job scheduling (escalations, briefings, sync), pub/sub, session management
+Auth
+Auth0
+Passcode + MFA, SSO-ready (SAML/OIDC), biometric hooks, RBAC primitives
+Hosting
+AWS (US regions): ECS Fargate, RDS, ElastiCache, S3, CloudFront, SES, Lambda
+US data residency, auto-scaling, managed services, SOC 2 path
+Voice-to-Text
+Deepgram
+Lowest latency, enterprise accuracy, real-time streaming
+SMS
+Twilio
+Industry standard, delivery receipts, 2-way messaging, opt-out compliance
+Voice Calls
+Bland.ai (Retell backup)
+AI voice agents, customizable personas, conversation pathways
+Search (Scale)
+Meilisearch → Elasticsearch
+PostgreSQL FTS for MVP; Meilisearch for growth; Elasticsearch for enterprise
+Monitoring
+Datadog
+Unified logging, metrics, APM, error tracking across 13+ integrations
+CI/CD
+GitHub Actions → AWS ECS
+Automated testing, staging, production deploys
+
+13. Commercial Model
+13.1 Pricing
+	•	Free trial to start
+	•	Premium subscription: $30–50/month individual, $75–150/seat teams
+	•	Tiered pricing (eventually): individual, team, enterprise
+	•	No integration limits at any tier
+	•	AI consumption above base allocation: pass-through pricing (OpenRouter-style)
+13.2 No White Labeling
+Sovereign is always Sovereign. The brand IS the product. No white-label offerings.
+13.3 API Access
+	•	Read-write API access for developers
+	•	Webhook support on every major event (meeting booked, commitment created, escalation triggered, agreement logged)
+13.4 Marketplace
+Developers and power users can publish and sell custom templates, workflow automations, and integrations. Revenue share model. Turns Sovereign into a platform, not just a product.
+13.5 Legal (Launch)
+	•	Terms of Service and Privacy Policy drafted by legal counsel
+	•	Self-service data deletion button + support request option
+	•	Meeting recording consent following best practices per jurisdiction
+	•	CAN-SPAM, TCPA, GDPR/CCPA technical hooks built in; full compliance hardened before commercial launch
+
+14. Phased Build Roadmap
+Phase 1: MVP — Personal Command Center
+Priority: CRITICAL — Cannot use the product without these features
+	•	Calendar with all views (nested daily/weekly/monthly/quarterly + command center + agenda)
+	•	Meeting lifecycle (booking gates, qualification, agenda/pre-read enforcement, Modern Meeting governance, auto-cancel, meeting cost calculator)
+	•	Accountability engine (three-tier tracking, escalation sequences, public tracker, streak/score, nightly close-out gate)
+	•	Contact intelligence (import, tiers, relationship scoring, DISC-adapted messaging)
+	•	Daily briefing + nightly review
+	•	AI EA API endpoints
+	•	Authentication (passcode + MFA)
+	•	Web application (primary)
+	•	Delegation & routing with upward delegation protection
+	•	Universal search + natural language queries + keyboard shortcuts
+
+Phase 2: Integration & Automation Layer
+Priority: HIGH — Required for full operational power
+	•	Full integration suite (Trello, ClickUp, Outlook, Teams, Zoom, Nimble, Slack, Twilio, Bland.ai)
+	•	Automation workflow builder + pre-built templates
+	•	Zapier connection
+	•	Desktop application (Electron)
+	•	iOS mobile application (React Native / Expo)
+	•	Outbound communication engine with DISC adaptation
+
+Phase 3: Voice Intelligence & Knowledge Engine
+Priority: MEDIUM — Significant capability enhancement
+	•	Voice capture + AI parsing across all input channels (in-platform, SMS, Carbon)
+	•	Knowledge base deflection (AnythingLLM API integration)
+	•	Meeting transcription pipeline (Granola + Deepgram integration)
+	•	Post-meeting automation (auto-extract, auto-distribute, auto-track)
+	•	Contradiction detection engine
+	•	Offline capability (prioritized subset with local queue)
+
+Phase 4: Analytics, Optimization & Scale
+Priority: GROWTH — Differentiation and monetization
+	•	Full analytics suite + psychometric optimization + AI insights
+	•	Trend analysis engine (daily/weekly/monthly/quarterly/cumulative)
+	•	Exportable reports
+	•	Self-improving escalation system
+	•	Marketplace foundation (templates, workflows, integrations)
+	•	API access (read-write) + webhook support
+	•	AI-guided onboarding + persona templates
+	•	Commercial launch preparation (pricing tiers, legal hardening, App Store submission)
+
+15. Appendices
+15.1 Modern Meeting Standard — Codified Rules
+	•	Meetings exist to support a decision that has already been made — not to brainstorm or share status
+	•	Meetings should be rejected if the issue can be resolved without one (knowledge base deflection)
+	•	An agenda is mandatory — no agenda, no meeting
+	•	Pre-reads are mandatory — distributed 24 hours in advance or the meeting auto-cancels
+	•	Meetings end with clear commitments — who does what by when
+	•	All attendees must be necessary — no spectators
+	•	Meeting cost is displayed on every invitation and follow-up
+	•	Post-meeting ratings are shared with all participants
+	•	Recurring meetings are subject to periodic ROI audits
+
+15.2 Psychological Principles — Accountability Design
+	•	Loss aversion: streak system creates fear of breaking consistency
+	•	Social proof: public tracker shows organizational norms
+	•	Commitment consistency (Cialdini): acknowledgment requirement creates verbal contract
+	•	Streak maintenance (habit research): visible consecutive-day tracking
+	•	Public commitment theory (Deutsch & Gerard): visible scores drive conformity to stated intentions
+	•	Ulysses contract: 2FA focus mode override prevents impulsive self-interruption
+
+15.3 Key Architectural Decisions
+	•	Sovereign owns time and attention, not task data
+	•	In any sync conflict, Sovereign wins
+	•	Knowledge base is queried via API, not hosted by Sovereign
+	•	AI EA is an external service; Sovereign exposes API endpoints for interaction
+	•	No white labeling — Sovereign is always Sovereign
+	•	Multi-tenancy architecture from day one, even for single-user MVP
+	•	Zapier is the escape valve, not the primary automation engine
+	•	All outbound messages appear from the user, not from the platform
+
+────────────────────────────────────────
+END OF DOCUMENT
+Sovereign v1.0 PRD — Confidential
