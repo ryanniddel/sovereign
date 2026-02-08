@@ -292,13 +292,15 @@ export class EscalationService {
       recipientEmail,
     });
 
-    // Schedule next step if available
+    // Schedule next step if available (with contact tier delay applied)
     const followingStep = steps.find((s: any) => s.stepOrder === nextStep.stepOrder + 1);
     if (followingStep) {
+      const tierDelay = await this.getContactTierDelay(userId, recipientEmail);
+      const totalDelayMs = (followingStep.delayMinutes + tierDelay) * 60 * 1000;
       await this.escalationQueue.add(
         'execute-escalation',
         { userId, targetId, targetType, ruleId, stepOrder: nextStep.stepOrder, retryCount },
-        { delay: followingStep.delayMinutes * 60 * 1000 },
+        { delay: totalDelayMs },
       );
     } else if (retryCount < rule.maxRetries) {
       // After last step, schedule retry cycle after cooldown
@@ -446,6 +448,8 @@ export class EscalationService {
         orderBy: { sentAt: 'desc' },
       });
 
+      const nextStepAt = this.calculateNextStepAt(steps, c.currentEscalationLevel, c.lastEscalatedAt || c.updatedAt);
+
       chains.push({
         targetId: c.id,
         targetType: 'COMMITMENT',
@@ -456,6 +460,7 @@ export class EscalationService {
         totalSteps: steps.length,
         status: latestLog?.escalationStatus || 'SENT',
         lastEscalatedAt: c.lastEscalatedAt || c.updatedAt,
+        nextStepAt,
       });
     }
 
@@ -465,6 +470,8 @@ export class EscalationService {
         where: { actionItemId: a.id, escalationStatus: { in: ['SENT', 'DELIVERED', 'PENDING'] } },
         orderBy: { sentAt: 'desc' },
       });
+
+      const nextStepAt = this.calculateNextStepAt(steps, a.currentEscalationLevel, a.lastEscalatedAt || a.updatedAt);
 
       chains.push({
         targetId: a.id,
@@ -476,6 +483,7 @@ export class EscalationService {
         totalSteps: steps.length,
         status: latestLog?.escalationStatus || 'SENT',
         lastEscalatedAt: a.lastEscalatedAt || a.updatedAt,
+        nextStepAt,
       });
     }
 
@@ -568,6 +576,20 @@ export class EscalationService {
     };
 
     return toneMessages[step.tone] || toneMessages.PROFESSIONAL;
+  }
+
+  private calculateNextStepAt(steps: any[], currentLevel: number, lastEscalatedAt: Date): Date | null {
+    const nextStep = steps.find((s: any) => s.stepOrder === currentLevel + 1);
+    if (!nextStep) return null;
+    return new Date(lastEscalatedAt.getTime() + nextStep.delayMinutes * 60 * 1000);
+  }
+
+  private async getContactTierDelay(userId: string, recipientEmail: string): Promise<number> {
+    const contact = await this.prisma.contact.findFirst({
+      where: { userId, email: recipientEmail },
+      include: { tier: true },
+    });
+    return contact?.tier?.escalationDelayMinutes || 0;
   }
 
   private async findRuleForTarget(userId: string, targetId: string, targetType: string): Promise<string> {

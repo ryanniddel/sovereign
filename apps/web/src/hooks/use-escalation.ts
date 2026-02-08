@@ -57,10 +57,102 @@ export function useDeleteEscalationRule() {
   });
 }
 
-export function useEscalationLogs() {
+export function useCloneEscalationRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: escalationApi.cloneRule,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['escalation'] });
+      toast.success('Escalation rule cloned');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useEscalationLogs(params?: Parameters<typeof escalationApi.getLogs>[0]) {
   return useQuery({
-    queryKey: ['escalation', 'logs'],
-    queryFn: () => escalationApi.getLogs(),
+    queryKey: ['escalation', 'logs', params],
+    queryFn: () => escalationApi.getLogs(params),
+  });
+}
+
+export function useEscalationAnalytics(days?: number) {
+  return useQuery({
+    queryKey: ['escalation', 'analytics', days],
+    queryFn: () => escalationApi.getAnalytics(days),
     select: (res) => res.data,
+  });
+}
+
+export function useActiveEscalationChains() {
+  return useQuery({
+    queryKey: ['escalation', 'active-chains'],
+    queryFn: () => escalationApi.getActiveChains(),
+    select: (res) => res.data,
+    refetchInterval: 60_000, // refresh every minute for real-time chain tracking
+  });
+}
+
+export function useTriggerEscalation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: escalationApi.trigger,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['escalation'] });
+      toast.success('Escalation triggered');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function usePauseEscalation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ targetId, targetType }: { targetId: string; targetType: string }) =>
+      escalationApi.pause(targetId, targetType),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['escalation'] });
+      toast.success('Escalation paused');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useResumeEscalation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ targetId, targetType }: { targetId: string; targetType: string }) =>
+      escalationApi.resume(targetId, targetType),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['escalation'] });
+      toast.success('Escalation resumed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCancelEscalation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ targetId, targetType }: { targetId: string; targetType: string }) =>
+      escalationApi.cancel(targetId, targetType),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['escalation'] });
+      toast.success('Escalation cancelled');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRecordEscalationResponse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ logId, responseContent }: { logId: string; responseContent?: string }) =>
+      escalationApi.recordResponse(logId, responseContent),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['escalation'] });
+      toast.success('Response recorded');
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

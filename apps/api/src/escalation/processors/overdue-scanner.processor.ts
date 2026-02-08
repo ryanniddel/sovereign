@@ -23,7 +23,19 @@ export class OverdueScannerProcessor extends WorkerHost {
     this.logger.log('Starting overdue item scan');
     const now = new Date();
 
-    // Scan overdue commitments
+    await Promise.all([
+      this.scanOverdueItems(now),
+      this.scanUnacknowledgedMeetings(now),
+      this.scanMissedPreReads(now),
+      this.scanMissedCloseouts(now),
+    ]);
+
+    this.logger.log('Overdue scan complete');
+  }
+
+  // ── OVERDUE trigger: commitments & action items past due ──
+
+  private async scanOverdueItems(now: Date) {
     const overdueCommitments = await this.prisma.commitment.findMany({
       where: {
         status: { in: ['PENDING', 'IN_PROGRESS'] },
@@ -50,7 +62,6 @@ export class OverdueScannerProcessor extends WorkerHost {
       }
     }
 
-    // Scan overdue action items
     const overdueActions = await this.prisma.actionItem.findMany({
       where: {
         status: { in: ['PENDING', 'IN_PROGRESS'] },
@@ -99,7 +110,186 @@ export class OverdueScannerProcessor extends WorkerHost {
     }
 
     this.logger.log(
-      `Overdue scan complete: ${overdueCommitments.length} commitments, ${overdueActions.length} action items`,
+      `Overdue scan: ${overdueCommitments.length} commitments, ${overdueActions.length} action items`,
     );
+  }
+
+  // ── NO_ACKNOWLEDGMENT trigger: meetings past 24h without participant acknowledgment ──
+
+  private async scanUnacknowledgedMeetings(now: Date) {
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // Find scheduled meetings where participants haven't acknowledged within 24h of scheduling
+    const meetings = await this.prisma.meeting.findMany({
+      where: {
+        status: 'SCHEDULED',
+        scheduledStartTime: { gt: now }, // still upcoming
+        createdAt: { lt: twentyFourHoursAgo }, // created more than 24h ago
+      },
+      include: {
+        participants: {
+          where: { hasAcknowledged: false },
+          include: { contact: true },
+        },
+      },
+    });
+
+    // Find escalation rules for NO_ACKNOWLEDGMENT trigger
+    const ackRules = await this.prisma.escalationRule.findMany({
+      where: { triggerType: 'NO_ACKNOWLEDGMENT', isActive: true },
+    });
+
+    if (ackRules.length === 0) return;
+
+    let triggered = 0;
+    for (const meeting of meetings) {
+      const unacknowledged = meeting.participants.filter((p) => !p.hasAcknowledged);
+      if (unacknowledged.length === 0) continue;
+
+      // Use the first matching rule for this user
+      const rule = ackRules.find((r) => r.userId === meeting.userId);
+      if (!rule) continue;
+
+      // Check if already escalated for this meeting
+      const existing = await this.prisma.escalationLog.findFirst({
+        where: {
+          escalationRuleId: rule.id,
+          userId: meeting.userId,
+          targetType: 'ACKNOWLEDGMENT',
+          escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+        },
+      });
+      if (existing) continue;
+
+      await this.escalationQueue.add('execute-escalation', {
+        userId: meeting.userId,
+        targetId: meeting.id,
+        targetType: 'ACKNOWLEDGMENT',
+        ruleId: rule.id,
+        stepOrder: 0,
+        retryCount: 0,
+      });
+      triggered++;
+    }
+
+    if (triggered > 0) {
+      this.logger.log(`No-acknowledgment scan: triggered ${triggered} escalation(s)`);
+    }
+  }
+
+  // ── MISSED_PRE_READ trigger: meetings past pre-read deadline without distribution ──
+
+  private async scanMissedPreReads(now: Date) {
+    // Find meetings with a pre-read deadline that's passed without distribution
+    const meetings = await this.prisma.meeting.findMany({
+      where: {
+        status: { in: ['SCHEDULED', 'PREP_SENT'] },
+        preReadDeadline: { lt: now },
+        preReadDistributedAt: null,
+        scheduledStartTime: { gt: now }, // still upcoming
+      },
+    });
+
+    const preReadRules = await this.prisma.escalationRule.findMany({
+      where: { triggerType: 'MISSED_PRE_READ', isActive: true },
+    });
+
+    if (preReadRules.length === 0) return;
+
+    let triggered = 0;
+    for (const meeting of meetings) {
+      const rule = preReadRules.find((r) => r.userId === meeting.userId);
+      if (!rule) continue;
+
+      // Check if already escalated for this meeting
+      const existing = await this.prisma.escalationLog.findFirst({
+        where: {
+          escalationRuleId: rule.id,
+          userId: meeting.userId,
+          targetType: 'MEETING_PREP',
+          escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+        },
+      });
+      if (existing) continue;
+
+      await this.escalationQueue.add('execute-escalation', {
+        userId: meeting.userId,
+        targetId: meeting.id,
+        targetType: 'MEETING_PREP',
+        ruleId: rule.id,
+        stepOrder: 0,
+        retryCount: 0,
+      });
+      triggered++;
+    }
+
+    if (triggered > 0) {
+      this.logger.log(`Missed pre-read scan: triggered ${triggered} escalation(s)`);
+    }
+  }
+
+  // ── NIGHTLY_CLOSEOUT trigger: users who haven't completed daily closeout ──
+
+  private async scanMissedCloseouts(now: Date) {
+    // Only run after 10 PM (22:00) — allow users time to close out
+    const hour = now.getUTCHours();
+    if (hour < 22) return;
+
+    const todayStart = new Date(now);
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const closeoutRules = await this.prisma.escalationRule.findMany({
+      where: { triggerType: 'NIGHTLY_CLOSEOUT', isActive: true },
+    });
+
+    if (closeoutRules.length === 0) return;
+
+    let triggered = 0;
+    for (const rule of closeoutRules) {
+      // Check if user has completed closeout today
+      const closeout = await this.prisma.dailyCloseout.findFirst({
+        where: {
+          userId: rule.userId,
+          date: { gte: todayStart },
+          isCompleted: true,
+        },
+      });
+
+      if (closeout) continue; // Already completed
+
+      // Check if already escalated today
+      const existing = await this.prisma.escalationLog.findFirst({
+        where: {
+          escalationRuleId: rule.id,
+          userId: rule.userId,
+          sentAt: { gte: todayStart },
+          escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+        },
+      });
+      if (existing) continue;
+
+      await this.escalationQueue.add('execute-escalation', {
+        userId: rule.userId,
+        targetId: rule.userId, // target is the user themselves
+        targetType: 'COMMITMENT', // use COMMITMENT as generic target
+        ruleId: rule.id,
+        stepOrder: 0,
+        retryCount: 0,
+      });
+
+      await this.notificationQueue.add('send-notification', {
+        userId: rule.userId,
+        channel: 'IN_APP',
+        priority: 'HIGH',
+        title: 'Daily closeout reminder',
+        message: 'You haven\'t completed your daily closeout yet. Complete it to maintain your streak.',
+      });
+
+      triggered++;
+    }
+
+    if (triggered > 0) {
+      this.logger.log(`Nightly closeout scan: triggered ${triggered} escalation(s)`);
+    }
   }
 }

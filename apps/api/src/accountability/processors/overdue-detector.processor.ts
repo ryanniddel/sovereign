@@ -51,11 +51,24 @@ export class OverdueDetectorProcessor extends WorkerHost {
       });
 
       // Queue escalation jobs for items with rules
-      for (const item of [...overdueWithEscalation, ...overdueActionsWithEscalation]) {
-        await this.escalationQueue.add('escalate', {
-          targetId: item.id,
+      for (const item of overdueWithEscalation) {
+        await this.escalationQueue.add('execute-escalation', {
           userId: item.userId,
-          escalationRuleId: item.escalationRuleId,
+          targetId: item.id,
+          targetType: 'COMMITMENT',
+          ruleId: item.escalationRuleId,
+          stepOrder: 0,
+          retryCount: 0,
+        });
+      }
+      for (const item of overdueActionsWithEscalation) {
+        await this.escalationQueue.add('execute-escalation', {
+          userId: item.userId,
+          targetId: item.id,
+          targetType: 'ACTION_ITEM',
+          ruleId: item.escalationRuleId,
+          stepOrder: 0,
+          retryCount: 0,
         });
       }
 

@@ -15,12 +15,13 @@ const columns: Column<EscalationLog>[] = [
 ];
 
 export default function EscalationLogsPage() {
-  const { data: logs, isLoading } = useEscalationLogs();
+  const { data, isLoading } = useEscalationLogs();
+  const logs = data?.data || [];
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold tracking-tight">Escalation Logs</h1>
-      <DataTable columns={columns} data={logs || []} loading={isLoading} emptyTitle="No escalation logs" />
+      <DataTable columns={columns} data={logs} loading={isLoading} emptyTitle="No escalation logs" />
     </div>
   );
 }
