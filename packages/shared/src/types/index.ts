@@ -19,6 +19,11 @@ import {
   FocusModeTrigger,
   NotificationContext,
   StreakType,
+  ProtectionRuleType,
+  SyncDirection,
+  SyncStatus,
+  SyncResolution,
+  ConflictSeverity,
 } from '../enums';
 
 // ── DISC Profile ──
@@ -106,11 +111,149 @@ export interface CalendarEvent {
   eventType: CalendarEventType;
   isProtected: boolean;
   recurrenceRule?: string;
+  travelBufferMinutes?: number;
+  travelOrigin?: string;
+  travelDestination?: string;
+  travelEventId?: string;
+  bufferBeforeMinutes: number;
+  bufferAfterMinutes: number;
   externalCalendarId?: string;
+  externalEventHash?: string;
   source: CalendarSource;
+  lastSyncedAt?: Date;
   meetingId?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// ── Calendar Protection Rules ──
+
+export interface CalendarProtectionRule {
+  id: string;
+  userId: string;
+  name: string;
+  type: ProtectionRuleType;
+  isActive: boolean;
+  startTime?: string;
+  endTime?: string;
+  daysOfWeek?: number[];
+  bufferMinutes?: number;
+  maxCount?: number;
+  requires2faOverride: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ── Calendar Sync ──
+
+export interface CalendarSyncConfig {
+  id: string;
+  userId: string;
+  source: CalendarSource;
+  direction: SyncDirection;
+  status: SyncStatus;
+  externalAccountId?: string;
+  externalCalendarId?: string;
+  externalCalendarName?: string;
+  sovereignWins: boolean;
+  importAsEventType?: CalendarEventType;
+  autoImportNewEvents: boolean;
+  syncIntervalMinutes: number;
+  lastSyncAt?: Date;
+  lastSyncError?: string;
+  nextSyncAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CalendarSyncLog {
+  id: string;
+  syncConfigId: string;
+  direction: SyncDirection;
+  externalEventId?: string;
+  calendarEventId?: string;
+  action: string;
+  resolution: SyncResolution;
+  hasConflict: boolean;
+  sovereignData?: Record<string, unknown>;
+  externalData?: Record<string, unknown>;
+  resolvedData?: Record<string, unknown>;
+  errorMessage?: string;
+  createdAt: Date;
+}
+
+// ── Nested Calendar Views ──
+
+export interface HourSlot {
+  hour: number; // 0-23
+  label: string; // "9:00 AM"
+  events: CalendarEvent[];
+}
+
+export interface DailyViewResponse {
+  date: string;
+  hours: HourSlot[];
+  totalEvents: number;
+  conflicts: ConflictResult[];
+}
+
+export interface DayBucket {
+  date: string;
+  dayOfWeek: number; // 0=Sun, 6=Sat
+  dayLabel: string;   // "Mon Feb 10"
+  events: CalendarEvent[];
+  totalEvents: number;
+}
+
+export interface WeeklyViewResponse {
+  weekStart: string;
+  weekEnd: string;
+  days: DayBucket[];
+  totalEvents: number;
+  conflicts: ConflictResult[];
+}
+
+export interface WeekBucket {
+  weekNumber: number;
+  weekStart: string;
+  weekEnd: string;
+  events: CalendarEvent[];
+  totalEvents: number;
+}
+
+export interface MonthlyViewResponse {
+  month: number;
+  year: number;
+  weeks: WeekBucket[];
+  totalEvents: number;
+  conflicts: ConflictResult[];
+}
+
+export interface MonthBucket {
+  month: number;
+  year: number;
+  monthLabel: string; // "February 2026"
+  events: CalendarEvent[];
+  totalEvents: number;
+}
+
+export interface QuarterlyViewResponse {
+  quarter: number;
+  year: number;
+  months: MonthBucket[];
+  totalEvents: number;
+  conflicts: ConflictResult[];
+}
+
+// ── Conflict Detection ──
+
+export interface ConflictResult {
+  severity: ConflictSeverity;
+  eventA: { id: string; title: string; startTime: Date; endTime: Date };
+  eventB: { id: string; title: string; startTime: Date; endTime: Date };
+  overlapMinutes: number;
+  message: string;
+  protectionRuleId?: string;
 }
 
 // ── Meeting ──

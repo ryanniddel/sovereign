@@ -162,3 +162,44 @@ export enum StreakType {
   MEETING_PREP = 'MEETING_PREP',
   ON_TIME = 'ON_TIME',
 }
+
+// ── Calendar Protection ──
+
+export enum ProtectionRuleType {
+  UNBOOKABLE_HOURS = 'UNBOOKABLE_HOURS',
+  BUFFER_TIME = 'BUFFER_TIME',
+  FOCUS_PROTECTION = 'FOCUS_PROTECTION',
+  MAX_DAILY_MEETINGS = 'MAX_DAILY_MEETINGS',
+}
+
+// ── Calendar Sync ──
+
+export enum SyncDirection {
+  INBOUND = 'INBOUND',
+  OUTBOUND = 'OUTBOUND',
+  BOTH = 'BOTH',
+}
+
+export enum SyncStatus {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  ERROR = 'ERROR',
+  DISCONNECTED = 'DISCONNECTED',
+}
+
+export enum SyncResolution {
+  SOVEREIGN_WINS = 'SOVEREIGN_WINS',
+  EXTERNAL_ACCEPTED = 'EXTERNAL_ACCEPTED',
+  MERGED = 'MERGED',
+  SKIPPED = 'SKIPPED',
+  ERROR = 'ERROR',
+}
+
+// ── Conflict Detection ──
+
+export enum ConflictSeverity {
+  HARD = 'HARD',       // direct time overlap
+  SOFT = 'SOFT',       // buffer zone violation
+  TRAVEL = 'TRAVEL',   // insufficient travel time
+  PROTECTION = 'PROTECTION', // violates protection rule
+}

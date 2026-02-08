@@ -61,6 +61,8 @@ model User {
   notificationPreferences NotificationPreference[]
   focusModes             FocusMode[]
   dailyCloseouts         DailyCloseout[]
+  calendarProtectionRules CalendarProtectionRule[]
+  calendarSyncConfigs    CalendarSyncConfig[]
 
   @@map("users")
 }
@@ -162,9 +164,21 @@ model CalendarEvent {
   // Recurrence
   recurrenceRule String? @map("recurrence_rule")
 
+  // Travel buffer
+  travelBufferMinutes Int?    @map("travel_buffer_minutes")
+  travelOrigin        String? @map("travel_origin")
+  travelDestination   String? @map("travel_destination")
+  travelEventId       String? @map("travel_event_id") // linked auto-created TRAVEL event
+
+  // Buffer time (pre/post event padding in 5-min increments)
+  bufferBeforeMinutes Int @default(0) @map("buffer_before_minutes")
+  bufferAfterMinutes  Int @default(0) @map("buffer_after_minutes")
+
   // External sync
   externalCalendarId String?        @map("external_calendar_id")
+  externalEventHash  String?        @map("external_event_hash") // for change detection
   source             CalendarSource @default(SOVEREIGN)
+  lastSyncedAt       DateTime?      @map("last_synced_at")
 
   // Link to meeting (if this event is a meeting)
   meetingId String?  @unique @map("meeting_id")
@@ -178,7 +192,135 @@ model CalendarEvent {
 
   @@index([userId, startTime])
   @@index([userId, eventType])
+  @@index([externalCalendarId])
   @@map("calendar_events")
+}
+
+// ── Calendar Protection Rules ──
+
+enum ProtectionRuleType {
+  UNBOOKABLE_HOURS  // e.g. no meetings before 9am or after 5pm
+  BUFFER_TIME       // e.g. 15-min buffer between meetings (5-min increments)
+  FOCUS_PROTECTION  // protect focus blocks from being overridden
+  MAX_DAILY_MEETINGS
+}
+
+model CalendarProtectionRule {
+  id     String             @id @default(cuid())
+  userId String             @map("user_id")
+  name   String
+  type   ProtectionRuleType
+
+  isActive Boolean @default(true) @map("is_active")
+
+  // For UNBOOKABLE_HOURS: time range
+  startTime String? @map("start_time") // "00:00"
+  endTime   String? @map("end_time")   // "09:00"
+  daysOfWeek Json?  @map("days_of_week") // [0,6] = Sun,Sat
+
+  // For BUFFER_TIME: minutes in 5-min increments
+  bufferMinutes Int? @map("buffer_minutes") // 5, 10, 15, 20...
+
+  // For MAX_DAILY_MEETINGS: count
+  maxCount Int? @map("max_count")
+
+  // For FOCUS_PROTECTION: override requires 2FA
+  requires2faOverride Boolean @default(false) @map("requires_2fa_override")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("calendar_protection_rules")
+}
+
+// ── Calendar Sync (Sovereign Always Wins) ──
+
+enum SyncDirection {
+  INBOUND   // External → Sovereign
+  OUTBOUND  // Sovereign → External
+  BOTH
+}
+
+enum SyncStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+  DISCONNECTED
+}
+
+model CalendarSyncConfig {
+  id     String         @id @default(cuid())
+  userId String         @map("user_id")
+  source CalendarSource
+  direction SyncDirection @default(BOTH)
+  status    SyncStatus    @default(ACTIVE)
+
+  // Connection credentials (encrypted reference — actual tokens in vault)
+  externalAccountId    String? @map("external_account_id")
+  externalCalendarId   String? @map("external_calendar_id")
+  externalCalendarName String? @map("external_calendar_name")
+
+  // Sync behavior
+  sovereignWins         Boolean @default(true) @map("sovereign_wins") // conflict resolution
+  importAsEventType     CalendarEventType? @map("import_as_event_type")
+  autoImportNewEvents   Boolean @default(true) @map("auto_import_new_events")
+  syncIntervalMinutes   Int     @default(5) @map("sync_interval_minutes")
+
+  lastSyncAt      DateTime? @map("last_sync_at")
+  lastSyncError   String?   @map("last_sync_error")
+  nextSyncAt      DateTime? @map("next_sync_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncLogs CalendarSyncLog[]
+
+  @@unique([userId, source, externalCalendarId])
+  @@index([status, nextSyncAt])
+  @@map("calendar_sync_configs")
+}
+
+enum SyncResolution {
+  SOVEREIGN_WINS
+  EXTERNAL_ACCEPTED
+  MERGED
+  SKIPPED
+  ERROR
+}
+
+model CalendarSyncLog {
+  id           String   @id @default(cuid())
+  syncConfigId String   @map("sync_config_id")
+  direction    SyncDirection
+
+  // What happened
+  externalEventId    String?        @map("external_event_id")
+  calendarEventId    String?        @map("calendar_event_id")
+  action             String         // CREATE, UPDATE, DELETE, CONFLICT
+  resolution         SyncResolution @default(SOVEREIGN_WINS)
+
+  // Conflict details
+  hasConflict          Boolean @default(false) @map("has_conflict")
+  sovereignData        Json?   @map("sovereign_data")    // snapshot of Sovereign version
+  externalData         Json?   @map("external_data")     // snapshot of external version
+  resolvedData         Json?   @map("resolved_data")     // what was applied
+
+  errorMessage String? @map("error_message")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  syncConfig CalendarSyncConfig @relation(fields: [syncConfigId], references: [id], onDelete: Cascade)
+
+  @@index([syncConfigId, createdAt])
+  @@index([action])
+  @@map("calendar_sync_logs")
 }
 
 // ════════════════════════════════════════════════════════════════

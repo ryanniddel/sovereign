@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsBoolean, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsBoolean, IsEnum, IsInt, Min, Max } from 'class-validator';
 import { CalendarEventType } from '@sovereign/shared';
 
 export class UpdateEventDto {
@@ -37,4 +37,32 @@ export class UpdateEventDto {
   @IsOptional()
   @IsString()
   recurrenceRule?: string;
+
+  // Travel buffer
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(480)
+  travelBufferMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  travelOrigin?: string;
+
+  @IsOptional()
+  @IsString()
+  travelDestination?: string;
+
+  // Buffer time (5-min increments)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  bufferBeforeMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  bufferAfterMinutes?: number;
 }
