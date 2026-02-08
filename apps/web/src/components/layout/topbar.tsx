@@ -3,6 +3,7 @@
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
 import { Breadcrumbs } from './breadcrumbs';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
@@ -27,6 +28,7 @@ export function Topbar() {
             ⌘K
           </kbd>
         </Button>
+        <NotificationBell />
         <ThemeToggle />
         <UserMenu />
       </div>

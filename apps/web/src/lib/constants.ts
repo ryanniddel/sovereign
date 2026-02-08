@@ -30,6 +30,7 @@ import {
   FocusModeTrigger,
   FocusModeDeactivationReason,
   FocusModeOverrideStatus,
+  NotificationCategory,
   CalendarEventType,
 } from '@sovereign/shared';
 
@@ -218,4 +219,26 @@ export const CALENDAR_EVENT_TYPE_COLORS: Record<CalendarEventType, string> = {
   [CalendarEventType.PERSONAL]: 'bg-green-500',
   [CalendarEventType.ADMIN]: 'bg-gray-500',
   [CalendarEventType.BREAK]: 'bg-teal-500',
+};
+
+export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
+  [NotificationCategory.ESCALATION]: 'Escalation',
+  [NotificationCategory.MEETING]: 'Meeting',
+  [NotificationCategory.COMMITMENT]: 'Commitment',
+  [NotificationCategory.ACTION_ITEM]: 'Action Item',
+  [NotificationCategory.BRIEFING]: 'Briefing',
+  [NotificationCategory.CLOSEOUT]: 'Closeout',
+  [NotificationCategory.SYSTEM]: 'System',
+  [NotificationCategory.FOCUS_MODE]: 'Focus Mode',
+};
+
+export const NOTIFICATION_CATEGORY_COLORS: Record<NotificationCategory, string> = {
+  [NotificationCategory.ESCALATION]: 'bg-red-500/10 text-red-500',
+  [NotificationCategory.MEETING]: 'bg-blue-500/10 text-blue-500',
+  [NotificationCategory.COMMITMENT]: 'bg-purple-500/10 text-purple-500',
+  [NotificationCategory.ACTION_ITEM]: 'bg-orange-500/10 text-orange-500',
+  [NotificationCategory.BRIEFING]: 'bg-emerald-500/10 text-emerald-500',
+  [NotificationCategory.CLOSEOUT]: 'bg-yellow-500/10 text-yellow-500',
+  [NotificationCategory.SYSTEM]: 'bg-gray-500/10 text-gray-500',
+  [NotificationCategory.FOCUS_MODE]: 'bg-violet-500/10 text-violet-500',
 };
