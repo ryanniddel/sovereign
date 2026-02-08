@@ -9,6 +9,7 @@ const settingsLinks = [
   { label: 'Working Hours', href: '/settings/working-hours' },
   { label: 'Psychometrics', href: '/settings/psychometrics' },
   { label: 'Briefing Preferences', href: '/settings/briefing-preferences' },
+  { label: 'Scheduler', href: '/settings/scheduler' },
 ];
 
 export function SettingsNav() {
