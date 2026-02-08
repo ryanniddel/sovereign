@@ -17,7 +17,8 @@ import {
   ESCALATION_TARGET_TYPE_LABELS,
 } from '@/lib/constants';
 import type { EscalationLog, EscalationChannel, EscalationTone, EscalationStatus, EscalationTargetType } from '@sovereign/shared';
-import { MessageSquare } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-yellow-500/10 text-yellow-500',
@@ -33,6 +34,7 @@ export default function EscalationLogsPage() {
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [targetTypeFilter, setTargetTypeFilter] = useState<string>('');
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [responseDialogLog, setResponseDialogLog] = useState<EscalationLog | null>(null);
   const [responseContent, setResponseContent] = useState('');
   const recordResponse = useRecordEscalationResponse();
@@ -64,18 +66,32 @@ export default function EscalationLogsPage() {
     { key: 'recipientEmail', header: 'Recipient', cell: (r) => r.recipientEmail || '-' },
     { key: 'stepOrder', header: 'Step', cell: (r) => r.stepOrder },
     {
-      key: 'actions', header: '', cell: (r) =>
-        r.escalationStatus !== 'RESPONDED' && r.escalationStatus !== 'CANCELLED' ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8"
-            onClick={(e) => { e.stopPropagation(); setResponseDialogLog(r); setResponseContent(''); }}
-            title="Record response"
-          >
-            <MessageSquare className="h-4 w-4" />
-          </Button>
-        ) : null,
+      key: 'actions', header: '', cell: (r) => (
+        <div className="flex items-center gap-1">
+          {(r.messageContent || r.responseContent) && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={(e) => { e.stopPropagation(); setExpandedLogId(expandedLogId === r.id ? null : r.id); }}
+              title="View details"
+            >
+              {expandedLogId === r.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          )}
+          {r.escalationStatus !== 'RESPONDED' && r.escalationStatus !== 'CANCELLED' && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={(e) => { e.stopPropagation(); setResponseDialogLog(r); setResponseContent(''); }}
+              title="Record response"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -116,6 +132,36 @@ export default function EscalationLogsPage() {
       </div>
 
       <DataTable columns={columns} data={logs} loading={isLoading} emptyTitle="No escalation logs" />
+
+      {expandedLogId && (() => {
+        const log = logs.find((l: EscalationLog) => l.id === expandedLogId);
+        if (!log) return null;
+        return (
+          <Card className="border-l-4 border-l-primary">
+            <CardContent className="py-3 space-y-2">
+              {log.messageContent && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Message Sent</p>
+                  <p className="text-sm whitespace-pre-wrap">{log.messageContent}</p>
+                </div>
+              )}
+              {log.responseContent && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Response Received</p>
+                  <p className="text-sm whitespace-pre-wrap">{log.responseContent}</p>
+                </div>
+              )}
+              {log.deliveredAt && (
+                <p className="text-xs text-muted-foreground">Delivered: {format(new Date(log.deliveredAt), 'PPp')}</p>
+              )}
+              {log.responseReceivedAt && (
+                <p className="text-xs text-muted-foreground">Response at: {format(new Date(log.responseReceivedAt), 'PPp')}</p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {data?.pagination && <PaginationControls page={data.pagination.page} totalPages={data.pagination.totalPages} onPageChange={setPage} />}
 
       <Dialog open={!!responseDialogLog} onOpenChange={(open) => { if (!open) setResponseDialogLog(null); }}>

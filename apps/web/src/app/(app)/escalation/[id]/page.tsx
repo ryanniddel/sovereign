@@ -3,9 +3,14 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEscalationRule, useUpdateEscalationRule, useDeleteEscalationRule } from '@/hooks/use-escalation';
 import { RuleForm } from '@/components/escalation/rule-form';
+import { WorkflowPreview } from '@/components/escalation/workflow-preview';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { PageSkeleton } from '@/components/shared/loading-skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ESCALATION_TRIGGER_LABELS } from '@/lib/constants';
+import type { EscalationTrigger } from '@sovereign/shared';
 import { useState } from 'react';
 
 export default function EscalationRuleDetailPage() {
@@ -25,6 +30,34 @@ export default function EscalationRuleDetailPage() {
         <h1 className="text-2xl font-bold">Edit Escalation Rule</h1>
         <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>Delete</Button>
       </div>
+
+      {/* Rule Summary */}
+      <Card>
+        <CardContent className="flex items-center gap-4 py-3">
+          <Badge variant={rule.isActive ? 'default' : 'secondary'}>
+            {rule.isActive ? 'Active' : 'Inactive'}
+          </Badge>
+          <span className="text-sm text-muted-foreground">
+            Trigger: {ESCALATION_TRIGGER_LABELS[rule.triggerType as EscalationTrigger] || rule.triggerType}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {rule.steps?.length || 0} steps · Max {rule.maxRetries} retries · {rule.cooldownMinutes}m cooldown
+          </span>
+          {rule.stopOnResponse && (
+            <Badge variant="outline" className="text-xs">Stops on response</Badge>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Visual Workflow Preview */}
+      {rule.steps && rule.steps.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Workflow Preview</CardTitle></CardHeader>
+          <CardContent>
+            <WorkflowPreview steps={rule.steps} />
+          </CardContent>
+        </Card>
+      )}
 
       <RuleForm
         defaultValues={{
