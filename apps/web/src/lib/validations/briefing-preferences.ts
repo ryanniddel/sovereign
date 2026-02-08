@@ -9,8 +9,8 @@ export const briefingPreferencesSchema = z.object({
   includeActionItems: z.boolean().optional(),
   includeStreaks: z.boolean().optional(),
   includeReflectionPrompt: z.boolean().optional(),
-  maxScheduleItems: z.coerce.number().min(1).max(50).optional(),
-  maxOverdueItems: z.coerce.number().min(1).max(50).optional(),
+  maxScheduleItems: z.coerce.number().min(5).max(50).optional(),
+  maxOverdueItems: z.coerce.number().min(3).max(25).optional(),
   morningEnabled: z.boolean().optional(),
   nightlyEnabled: z.boolean().optional(),
 });

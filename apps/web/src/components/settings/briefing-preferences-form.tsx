@@ -159,12 +159,12 @@ export function BriefingPreferencesForm() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="maxScheduleItems">Max Schedule Items</Label>
-              <Input id="maxScheduleItems" type="number" min={1} max={50} {...register('maxScheduleItems')} />
+              <Input id="maxScheduleItems" type="number" min={5} max={50} {...register('maxScheduleItems')} />
               {errors.maxScheduleItems && <p className="text-xs text-destructive">{errors.maxScheduleItems.message}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="maxOverdueItems">Max Overdue Items</Label>
-              <Input id="maxOverdueItems" type="number" min={1} max={50} {...register('maxOverdueItems')} />
+              <Input id="maxOverdueItems" type="number" min={3} max={25} {...register('maxOverdueItems')} />
               {errors.maxOverdueItems && <p className="text-xs text-destructive">{errors.maxOverdueItems.message}</p>}
             </div>
           </div>
