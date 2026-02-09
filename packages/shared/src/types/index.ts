@@ -585,6 +585,15 @@ export interface MorningBriefingContent {
     totalMeetingCost: number;
     firstMeeting?: string;
   };
+  contactContext: {
+    contactId: string;
+    name: string;
+    company?: string;
+    discProfile?: { D: number; I: number; S: number; C: number };
+    relationshipScore: number;
+    meetingTitle: string;
+  }[];
+  focusRecommendation: string;
   aiInsight: string;
   priorityRanking: string[];
   generatedAt: string;
@@ -621,6 +630,8 @@ export interface NightlyReviewContent {
   tomorrowPrep: {
     meetingTitle: string;
     startTime: string;
+    meetingType?: string;
+    meetingCost?: number;
     preReadSent: boolean;
     agendaConfirmed: boolean;
     participantCount: number;

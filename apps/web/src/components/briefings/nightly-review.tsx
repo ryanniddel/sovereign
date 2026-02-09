@@ -140,7 +140,12 @@ export function NightlyReview({ content }: NightlyReviewProps) {
                     <Clock className="h-3 w-3" />{meeting.startTime}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {meeting.meetingType && (
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {meeting.meetingType.replace(/_/g, ' ').toLowerCase()}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className={`text-xs ${meeting.preReadSent ? 'border-emerald-500/30 text-emerald-600' : 'border-orange-500/30 text-orange-600'}`}>
                     {meeting.preReadSent ? 'Pre-read sent' : 'No pre-read'}
                   </Badge>
@@ -150,6 +155,9 @@ export function NightlyReview({ content }: NightlyReviewProps) {
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Users className="h-3 w-3" />{meeting.participantCount}
                   </span>
+                  {meeting.meetingCost != null && meeting.meetingCost > 0 && (
+                    <span className="text-xs text-muted-foreground">${meeting.meetingCost}</span>
+                  )}
                 </div>
               </div>
             ))}

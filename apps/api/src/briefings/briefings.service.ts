@@ -210,6 +210,13 @@ export class BriefingsService {
       }),
     ]);
 
+    // Gather contact relationship context for today's meetings
+    const todayMeetingIds = schedule
+      .filter((e) => e.meetingId)
+      .map((e) => e.meetingId!);
+
+    const contactContext = await this.getContactContextForMeetings(userId, todayMeetingIds, schedule);
+
     // Build priority ranking: combine commitments + action items by priority weight
     const allDueToday = [
       ...commitmentsDue.map((c) => ({ title: c.title, weight: PRIORITY_WEIGHTS[c.priority] || 1 })),
@@ -271,6 +278,12 @@ export class BriefingsService {
         totalMeetingCost: tomorrowMeetings.reduce((sum, e) => sum + (e.meeting?.meetingCost || 0), 0),
         firstMeeting: tomorrowMeetings[0]?.startTime?.toISOString(),
       },
+      contactContext,
+      focusRecommendation: this.generateFocusRecommendation(
+        schedule,
+        commitmentsDue.length + actionItemsDue.length,
+        overdueCommitments.length + overdueActions.length,
+      ),
       aiInsight: this.generateMorningInsight(
         commitmentsDue.length,
         actionItemsDue.length,
@@ -429,6 +442,8 @@ export class BriefingsService {
       tomorrowPrep: tomorrowMeetings.map((e) => ({
         meetingTitle: e.title,
         startTime: e.startTime.toISOString(),
+        meetingType: e.meeting?.meetingType,
+        meetingCost: e.meeting?.meetingCost,
         preReadSent: !!e.meeting?.preReadDistributedAt,
         agendaConfirmed: !!e.meeting?.agendaSubmittedAt,
         participantCount: e.meeting?.participants?.length || 0,
@@ -536,5 +551,118 @@ export class BriefingsService {
       return `Score at ${score}. Focus on completing your highest-priority commitments to rebuild momentum.`;
     }
     return `${totalDue} items due today across ${meetingCount} meeting(s). Focus on your highest-priority commitments first.`;
+  }
+
+  /**
+   * Gather contact DISC profiles and relationship scores for contacts in today's meetings.
+   */
+  private async getContactContextForMeetings(
+    userId: string,
+    meetingIds: string[],
+    schedule: { meetingId?: string | null; title: string }[],
+  ) {
+    if (meetingIds.length === 0) return [];
+
+    const participants = await this.prisma.meetingParticipant.findMany({
+      where: { meetingId: { in: meetingIds } },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            company: true,
+            discD: true,
+            discI: true,
+            discS: true,
+            discC: true,
+            relationshipScore: true,
+          },
+        },
+      },
+    });
+
+    // Deduplicate contacts and attach meeting title
+    const seen = new Set<string>();
+    const context: {
+      contactId: string;
+      name: string;
+      company?: string;
+      discProfile?: { D: number; I: number; S: number; C: number };
+      relationshipScore: number;
+      meetingTitle: string;
+    }[] = [];
+
+    for (const p of participants) {
+      if (!p.contact || seen.has(p.contact.id)) continue;
+      seen.add(p.contact.id);
+
+      const event = schedule.find((e) => e.meetingId === p.meetingId);
+      const hasDisc = p.contact.discD || p.contact.discI || p.contact.discS || p.contact.discC;
+
+      context.push({
+        contactId: p.contact.id,
+        name: p.contact.name,
+        company: p.contact.company || undefined,
+        discProfile: hasDisc
+          ? { D: p.contact.discD, I: p.contact.discI, S: p.contact.discS, C: p.contact.discC }
+          : undefined,
+        relationshipScore: p.contact.relationshipScore,
+        meetingTitle: event?.title || '',
+      });
+    }
+
+    return context;
+  }
+
+  /**
+   * Generate focus recommendation based on schedule density and workload.
+   */
+  private generateFocusRecommendation(
+    schedule: { startTime: Date; endTime: Date; eventType: string }[],
+    totalDueItems: number,
+    overdueCount: number,
+  ): string {
+    const meetings = schedule.filter((e) => e.eventType === 'MEETING');
+    const totalMeetingHours = meetings.reduce((sum, m) => {
+      return sum + (m.endTime.getTime() - m.startTime.getTime()) / (1000 * 60 * 60);
+    }, 0);
+
+    // Find the longest gap between meetings for deep work
+    if (meetings.length >= 2) {
+      const sorted = [...meetings].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+      let longestGapMin = 0;
+      let gapStart = '';
+      let gapEnd = '';
+
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const gap = (sorted[i + 1].startTime.getTime() - sorted[i].endTime.getTime()) / (1000 * 60);
+        if (gap > longestGapMin) {
+          longestGapMin = gap;
+          gapStart = sorted[i].endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          gapEnd = sorted[i + 1].startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+      }
+
+      if (longestGapMin >= 60) {
+        return `Best focus window: ${gapStart} – ${gapEnd} (${Math.round(longestGapMin / 60 * 10) / 10}h). Use this block for your ${overdueCount > 0 ? overdueCount + ' overdue items' : totalDueItems + ' due items'}.`;
+      }
+    }
+
+    if (meetings.length === 0) {
+      if (overdueCount > 3) {
+        return `Meeting-free day — ideal for clearing your ${overdueCount} overdue items. Consider activating a focus mode.`;
+      }
+      return 'No meetings today — activate a focus mode and tackle your highest-priority work.';
+    }
+
+    if (totalMeetingHours > 5) {
+      return `Heavy meeting load (${Math.round(totalMeetingHours)}h). Batch small tasks between meetings and defer deep work.`;
+    }
+
+    if (overdueCount > 0) {
+      return `Clear ${overdueCount} overdue item${overdueCount > 1 ? 's' : ''} before your first meeting. Activate a focus mode for uninterrupted work.`;
+    }
+
+    return `${meetings.length} meeting${meetings.length > 1 ? 's' : ''} today. Block 1–2 hours of focus time for your ${totalDueItems} due items.`;
   }
 }

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Sun, Clock, AlertTriangle, Target, Flame, CheckSquare, ClipboardList, CalendarDays, Handshake } from 'lucide-react';
+import { Sun, Clock, AlertTriangle, Target, Flame, CheckSquare, ClipboardList, CalendarDays, Handshake, Users, Focus, Star } from 'lucide-react';
 import { PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/constants';
 import type { MorningBriefingContent } from '@sovereign/shared';
 import type { Priority } from '@sovereign/shared';
@@ -117,6 +117,45 @@ export function MorningBriefing({ content }: MorningBriefingProps) {
         </Card>
       )}
 
+      {/* Contact Context */}
+      {content.contactContext?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-5 w-5 text-teal-500" />
+              People You&apos;ll Meet
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {content.contactContext.map((contact) => (
+              <div key={contact.contactId} className="rounded-md border p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium">{contact.name}</span>
+                    {contact.company && (
+                      <span className="text-xs text-muted-foreground ml-2">{contact.company}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-3 w-3 text-yellow-500" />
+                    <span className="text-xs font-medium">{contact.relationshipScore}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">{contact.meetingTitle}</p>
+                {contact.discProfile && (
+                  <div className="flex gap-2 text-xs">
+                    <span className="text-red-500">D:{contact.discProfile.D}</span>
+                    <span className="text-yellow-500">I:{contact.discProfile.I}</span>
+                    <span className="text-green-500">S:{contact.discProfile.S}</span>
+                    <span className="text-blue-500">C:{contact.discProfile.C}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Metrics */}
       <Card>
         <CardHeader>
@@ -193,6 +232,18 @@ export function MorningBriefing({ content }: MorningBriefingProps) {
                 </li>
               ))}
             </ol>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Focus Recommendation */}
+      {content.focusRecommendation && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-2">
+              <Focus className="h-4 w-4 mt-0.5 text-violet-500 shrink-0" />
+              <p className="text-sm">{content.focusRecommendation}</p>
+            </div>
           </CardContent>
         </Card>
       )}
