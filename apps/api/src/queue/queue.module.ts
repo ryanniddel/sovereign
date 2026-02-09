@@ -8,6 +8,8 @@ export const QUEUE_NAMES = {
   BRIEFING: 'briefing',
   SYNC: 'sync',
   AI_PROCESSING: 'ai-processing',
+  MEETINGS: 'meetings',
+  FOCUS_MODES: 'focus-modes',
 } as const;
 
 @Module({
@@ -28,6 +30,8 @@ export const QUEUE_NAMES = {
       { name: QUEUE_NAMES.BRIEFING },
       { name: QUEUE_NAMES.SYNC },
       { name: QUEUE_NAMES.AI_PROCESSING },
+      { name: QUEUE_NAMES.MEETINGS },
+      { name: QUEUE_NAMES.FOCUS_MODES },
     ),
   ],
   exports: [BullModule],

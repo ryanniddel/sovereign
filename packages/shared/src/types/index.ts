@@ -766,6 +766,7 @@ export interface NotificationPreference {
   isEnabled: boolean;
   context: NotificationContext;
   priority: Priority;
+  category: string;
 }
 
 // ── Notifications ──

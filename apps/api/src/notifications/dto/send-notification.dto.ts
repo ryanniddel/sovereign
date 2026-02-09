@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsOptional } from 'class-validator';
-import { EscalationChannel, Priority } from '@sovereign/shared';
+import { EscalationChannel, Priority, NotificationCategory } from '@sovereign/shared';
 
 export class SendNotificationDto {
   @IsString()
@@ -15,4 +15,20 @@ export class SendNotificationDto {
   @IsOptional()
   @IsEnum(Priority)
   priority?: Priority;
+
+  @IsOptional()
+  @IsEnum(NotificationCategory)
+  category?: NotificationCategory;
+
+  @IsOptional()
+  @IsString()
+  targetType?: string;
+
+  @IsOptional()
+  @IsString()
+  targetId?: string;
+
+  @IsOptional()
+  @IsString()
+  groupKey?: string;
 }

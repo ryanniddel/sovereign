@@ -104,6 +104,10 @@ export class NotificationsController {
       message: dto.message,
       channel: dto.channel,
       priority: dto.priority,
+      category: dto.category,
+      targetType: dto.targetType,
+      targetId: dto.targetId,
+      groupKey: dto.groupKey,
     });
     return wrapResponse(notification);
   }

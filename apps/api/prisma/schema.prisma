@@ -902,6 +902,7 @@ model NotificationPreference {
   isEnabled Boolean          @default(true) @map("is_enabled")
   context NotificationContext @default(ALL)
   priority Priority          @default(MEDIUM)
+  category String             @default("ALL")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -909,7 +910,7 @@ model NotificationPreference {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, channel, context])
+  @@unique([userId, channel, context, category])
   @@map("notification_preferences")
 }
 

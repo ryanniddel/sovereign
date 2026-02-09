@@ -57,6 +57,7 @@ export class FocusModesService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.FOCUS_MODES) private readonly focusModesQueue: Queue,
   ) {}
 
   // ── Defaults ──
@@ -231,7 +232,7 @@ export class FocusModesService {
 
     // Schedule auto-deactivation if configured
     if (mode.autoDeactivateMinutes) {
-      await this.notificationQueue.add(
+      await this.focusModesQueue.add(
         'focus-mode-auto-deactivate',
         { userId, focusModeId: id, sessionActivatedAt: now.toISOString() },
         { delay: mode.autoDeactivateMinutes * 60 * 1000 },

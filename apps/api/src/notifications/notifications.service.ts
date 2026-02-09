@@ -27,18 +27,21 @@ export class NotificationsService {
 
   async upsertPreference(userId: string, dto: UpdateNotificationPreferenceDto) {
     const context = dto.context || 'ALL';
+    const category = dto.category || 'ALL';
     return this.prisma.notificationPreference.upsert({
       where: {
-        userId_channel_context: {
+        userId_channel_context_category: {
           userId,
           channel: dto.channel as any,
           context: context as any,
+          category,
         },
       },
       create: {
         userId,
         channel: dto.channel as any,
         context: context as any,
+        category,
         isEnabled: dto.isEnabled ?? true,
         priority: (dto.priority || 'MEDIUM') as any,
       },
@@ -75,7 +78,10 @@ export class NotificationsService {
     userId: string,
     channel: string,
     priority: string,
+    category?: string,
   ): Promise<{ deliver: boolean; reason?: string }> {
+    const resolvedCategory = category || 'SYSTEM';
+
     // 1. Check active focus mode
     const activeFocus = await this.prisma.focusMode.findFirst({
       where: { userId, isActive: true },
@@ -87,8 +93,9 @@ export class NotificationsService {
       } else if (activeFocus.allowCriticalOnly && priority !== 'CRITICAL') {
         return { deliver: false, reason: `Focus mode "${activeFocus.name}" blocks non-critical` };
       } else if (activeFocus.allowMeetingPrep) {
-        // Allow meeting prep and critical
-        if (priority !== 'CRITICAL' && priority !== 'HIGH') {
+        // Allow meeting-related categories and critical priority
+        const meetingCategories = ['MEETING', 'ESCALATION'];
+        if (priority !== 'CRITICAL' && !meetingCategories.includes(resolvedCategory)) {
           return { deliver: false, reason: `Focus mode "${activeFocus.name}" allows meeting prep + critical only` };
         }
       } else if (!activeFocus.allowAll && !activeFocus.allowCriticalOnly && !activeFocus.allowMeetingPrep) {
@@ -96,19 +103,23 @@ export class NotificationsService {
       }
     }
 
-    // 2. Determine current context (work hours vs after hours)
+    // 2. Determine current context (work hours vs after hours, or focus mode)
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { deliver: false, reason: 'User not found' };
 
-    const currentContext = this.getCurrentContext(user.workingHoursStart, user.workingHoursEnd, user.timezone);
+    const currentContext = activeFocus
+      ? 'FOCUS_MODE'
+      : this.getCurrentContext(user.workingHoursStart, user.workingHoursEnd, user.timezone);
 
-    // 3. Check notification preferences for this channel + context
+    // 3. Check notification preferences for this channel + context + category
+    // Try category-specific first, fall back to ALL-category
     const prefs = await this.prisma.notificationPreference.findMany({
       where: {
         userId,
         channel: channel as any,
         isEnabled: true,
         context: { in: [currentContext as any, 'ALL' as any] },
+        category: { in: [resolvedCategory, 'ALL'] },
       },
     });
 
@@ -126,12 +137,15 @@ export class NotificationsService {
       return { deliver: false, reason: `No preference configured for channel ${channel}` };
     }
 
-    // 4. Check priority threshold
-    const minPriority = Math.min(...prefs.map((p) => PRIORITY_ORDER[p.priority] || 0));
+    // 4. Check priority threshold (category-specific pref takes precedence over ALL)
+    const categorySpecific = prefs.filter((p) => p.category === resolvedCategory);
+    const effectivePrefs = categorySpecific.length > 0 ? categorySpecific : prefs;
+
+    const minPriority = Math.min(...effectivePrefs.map((p) => PRIORITY_ORDER[p.priority] || 0));
     const notifPriority = PRIORITY_ORDER[priority] || 0;
 
     if (notifPriority < minPriority) {
-      return { deliver: false, reason: `Priority ${priority} below minimum ${prefs[0].priority} for ${currentContext}` };
+      return { deliver: false, reason: `Priority ${priority} below minimum for ${currentContext}/${resolvedCategory}` };
     }
 
     return { deliver: true };
@@ -153,7 +167,7 @@ export class NotificationsService {
     const channel = data.channel || 'IN_APP';
     const priority = data.priority || 'MEDIUM';
 
-    const { deliver, reason } = await this.shouldDeliver(data.userId, channel, priority);
+    const { deliver, reason } = await this.shouldDeliver(data.userId, channel, priority, data.category);
 
     return this.prisma.notification.create({
       data: {
@@ -166,7 +180,7 @@ export class NotificationsService {
         targetType: data.targetType,
         targetId: data.targetId,
         groupKey: data.groupKey,
-        deliveredAt: deliver ? new Date() : null,
+        deliveredAt: null,
         suppressed: !deliver,
         suppressionReason: reason || null,
       },

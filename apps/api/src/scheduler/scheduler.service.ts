@@ -18,6 +18,8 @@ export class SchedulerService {
     @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.AI_PROCESSING) private readonly aiProcessingQueue: Queue,
     @InjectQueue(QUEUE_NAMES.SYNC) private readonly syncQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.MEETINGS) private readonly meetingsQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.FOCUS_MODES) private readonly focusModesQueue: Queue,
   ) {}
 
   // ════════════════════════════════════════════════════════════════
@@ -190,7 +192,7 @@ export class SchedulerService {
 
   @Cron('*/15 * * * *')
   async meetingPrepDistribution() {
-    await this.trackJob('meeting-prep-distribution', QUEUE_NAMES.NOTIFICATION, async () => {
+    await this.trackJob('meeting-prep-distribution', QUEUE_NAMES.MEETINGS, async () => {
       const now = new Date();
       const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const in23h45m = new Date(now.getTime() + (24 * 60 - 15) * 60 * 1000);
@@ -206,14 +208,14 @@ export class SchedulerService {
 
       let queued = 0;
       for (const meeting of meetings) {
-        await this.notificationQueue.add('meeting-prep-reminder', {
+        await this.meetingsQueue.add('meeting-prep-reminder', {
           meetingId: meeting.id,
           userId: meeting.userId,
         });
 
         // If pre-read exists but hasn't been distributed, queue distribution
         if (meeting.preReadUrl && !meeting.preReadDistributedAt) {
-          await this.notificationQueue.add('distribute-meeting-prep', {
+          await this.meetingsQueue.add('distribute-meeting-prep', {
             meetingId: meeting.id,
             userId: meeting.userId,
           });
@@ -231,10 +233,8 @@ export class SchedulerService {
 
   @Cron('*/30 * * * *')
   async acknowledgmentFollowups() {
-    await this.trackJob('acknowledgment-followups', QUEUE_NAMES.NOTIFICATION, async () => {
+    await this.trackJob('acknowledgment-followups', QUEUE_NAMES.MEETINGS, async () => {
       const now = new Date();
-      const h24ago = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const h48ago = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
       // Find scheduled meetings with unacknowledged participants
       const meetings = await this.prisma.meeting.findMany({
@@ -259,7 +259,7 @@ export class SchedulerService {
 
           // 24h reminder
           if (hours >= 24 && hours < 25) {
-            await this.notificationQueue.add('acknowledgment-followup', {
+            await this.meetingsQueue.add('acknowledgment-followup', {
               meetingId: meeting.id,
               participantId: participant.id,
               participantEmail: participant.email,
@@ -271,7 +271,7 @@ export class SchedulerService {
 
           // 48h final warning
           if (hours >= 48 && hours < 49) {
-            await this.notificationQueue.add('acknowledgment-followup', {
+            await this.meetingsQueue.add('acknowledgment-followup', {
               meetingId: meeting.id,
               participantId: participant.id,
               participantEmail: participant.email,
@@ -364,8 +364,8 @@ export class SchedulerService {
 
   @Cron('*/2 * * * *')
   async focusModeTriggerCheck() {
-    await this.trackJob('focus-mode-triggers', QUEUE_NAMES.NOTIFICATION, async () => {
-      await this.notificationQueue.add('focus-mode-check-triggers', {});
+    await this.trackJob('focus-mode-triggers', QUEUE_NAMES.FOCUS_MODES, async () => {
+      await this.focusModesQueue.add('focus-mode-check-triggers', {});
       return { itemsProcessed: 1 };
     });
   }
@@ -376,8 +376,8 @@ export class SchedulerService {
 
   @Cron('*/5 * * * *')
   async focusModeOverrideExpiry() {
-    await this.trackJob('focus-mode-override-expiry', QUEUE_NAMES.NOTIFICATION, async () => {
-      await this.notificationQueue.add('focus-mode-expire-overrides', {});
+    await this.trackJob('focus-mode-override-expiry', QUEUE_NAMES.FOCUS_MODES, async () => {
+      await this.focusModesQueue.add('focus-mode-expire-overrides', {});
       return { itemsProcessed: 1 };
     });
   }
@@ -461,15 +461,15 @@ export class SchedulerService {
       { name: 'hourly-overdue-scan', queue: 'escalation', schedule: 'Every hour', description: 'Scans for overdue items and triggers escalations' },
       { name: 'per-user-briefing-check', queue: 'briefing', schedule: 'Every minute', description: 'Checks if any user briefings are due based on their configured time' },
       { name: 'calendar-sync-dispatch', queue: 'sync', schedule: 'Every minute', description: 'Dispatches calendar sync jobs for active sync configs' },
-      { name: 'meeting-prep-distribution', queue: 'notification', schedule: 'Every 15 minutes', description: 'Distributes meeting prep materials 24h before meetings' },
-      { name: 'acknowledgment-followups', queue: 'notification', schedule: 'Every 30 minutes', description: 'Sends follow-ups for unacknowledged meeting invitations' },
+      { name: 'meeting-prep-distribution', queue: 'meetings', schedule: 'Every 15 minutes', description: 'Distributes meeting prep materials 24h before meetings' },
+      { name: 'acknowledgment-followups', queue: 'meetings', schedule: 'Every 30 minutes', description: 'Sends follow-ups for unacknowledged meeting invitations' },
       { name: 'midnight-batch', queue: 'ai-processing', schedule: 'Daily at midnight', description: 'Calculates daily scores, checks streaks, reviews recurring meetings' },
       { name: 'relationship-score-decay', queue: 'ai-processing', schedule: 'Daily at 1am', description: 'Applies relationship score decay for inactive contacts' },
       { name: 'search-index-cleanup', queue: 'ai-processing', schedule: 'Daily at 3am', description: 'Cleans up old recent searches' },
       { name: 'job-history-cleanup', queue: 'scheduler', schedule: 'Daily at 4am', description: 'Removes job run history older than 30 days' },
       { name: 'meeting-auto-cancel', queue: 'ai-processing', schedule: 'Every 5 minutes', description: 'Auto-cancels meetings missing pre-reads past deadline' },
-      { name: 'focus-mode-triggers', queue: 'notification', schedule: 'Every 2 minutes', description: 'Checks scheduled and calendar triggers for focus mode activation' },
-      { name: 'focus-mode-override-expiry', queue: 'notification', schedule: 'Every 5 minutes', description: 'Expires stale focus mode override requests' },
+      { name: 'focus-mode-triggers', queue: 'focus-modes', schedule: 'Every 2 minutes', description: 'Checks scheduled and calendar triggers for focus mode activation' },
+      { name: 'focus-mode-override-expiry', queue: 'focus-modes', schedule: 'Every 5 minutes', description: 'Expires stale focus mode override requests' },
       { name: 'notification-digest', queue: 'notification', schedule: 'Every 30 minutes', description: 'Sends digest of suppressed notifications during focus mode' },
     ];
 

@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { EscalationChannel, NotificationContext, Priority } from '@sovereign/shared';
 
 export class UpdateNotificationPreferenceDto {
@@ -16,4 +16,8 @@ export class UpdateNotificationPreferenceDto {
   @IsOptional()
   @IsEnum(Priority)
   priority?: Priority;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

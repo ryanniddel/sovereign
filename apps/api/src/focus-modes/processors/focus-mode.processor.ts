@@ -3,7 +3,7 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { FocusModesService } from '../focus-modes.service';
 
-@Processor('notification')
+@Processor('focus-modes')
 export class FocusModeProcessor extends WorkerHost {
   private readonly logger = new Logger(FocusModeProcessor.name);
 

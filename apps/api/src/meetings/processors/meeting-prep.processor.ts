@@ -5,7 +5,7 @@ import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { QUEUE_NAMES } from '../../queue/queue.module';
 
-@Processor('notification')
+@Processor('meetings')
 export class MeetingPrepProcessor extends WorkerHost {
   private readonly logger = new Logger(MeetingPrepProcessor.name);
 
