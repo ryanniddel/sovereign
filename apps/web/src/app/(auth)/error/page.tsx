@@ -1,22 +1,23 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
 
-export default function AuthErrorPage() {
+const errorMessages: Record<string, string> = {
+  Configuration: 'There is a problem with the server configuration.',
+  AccessDenied: 'Access denied. You do not have permission.',
+  Verification: 'The verification link has expired or has already been used.',
+  Default: 'An unexpected authentication error occurred.',
+};
+
+function ErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
-
-  const errorMessages: Record<string, string> = {
-    Configuration: 'There is a problem with the server configuration.',
-    AccessDenied: 'Access denied. You do not have permission.',
-    Verification: 'The verification link has expired or has already been used.',
-    Default: 'An unexpected authentication error occurred.',
-  };
-
   const message = errorMessages[error || ''] || errorMessages.Default;
 
   return (
@@ -34,5 +35,13 @@ export default function AuthErrorPage() {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-48 w-full max-w-md" />}>
+      <ErrorContent />
+    </Suspense>
   );
 }
