@@ -8,6 +8,7 @@ import { TriggerEscalationDto } from './dto/trigger-escalation.dto';
 import { EscalationQueryDto } from './dto/escalation-query.dto';
 import { EscalationLogQueryDto } from './dto/escalation-log-query.dto';
 import { RecordResponseDto } from './dto/record-response.dto';
+import { EscalationTargetDto } from './dto/escalation-target.dto';
 import { wrapResponse, wrapPaginatedResponse } from '../common';
 
 @Controller('escalation')
@@ -134,33 +135,30 @@ export class EscalationController {
   @Post('pause')
   async pause(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
-    @Body('targetId') targetId: string,
-    @Body('targetType') targetType: string,
+    @Body() dto: EscalationTargetDto,
   ) {
     const userId = await this.resolveUserId(currentUser);
-    await this.escalationService.pauseEscalation(userId, targetId, targetType);
+    await this.escalationService.pauseEscalation(userId, dto.targetId, dto.targetType);
     return wrapResponse(null, 'Escalation paused');
   }
 
   @Post('resume')
   async resume(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
-    @Body('targetId') targetId: string,
-    @Body('targetType') targetType: string,
+    @Body() dto: EscalationTargetDto,
   ) {
     const userId = await this.resolveUserId(currentUser);
-    await this.escalationService.resumeEscalation(userId, targetId, targetType);
+    await this.escalationService.resumeEscalation(userId, dto.targetId, dto.targetType);
     return wrapResponse(null, 'Escalation resumed');
   }
 
   @Post('cancel')
   async cancel(
     @CurrentUser() currentUser: { auth0Id: string; email: string },
-    @Body('targetId') targetId: string,
-    @Body('targetType') targetType: string,
+    @Body() dto: EscalationTargetDto,
   ) {
     const userId = await this.resolveUserId(currentUser);
-    await this.escalationService.cancelEscalation(userId, targetId, targetType);
+    await this.escalationService.cancelEscalation(userId, dto.targetId, dto.targetType);
     return wrapResponse(null, 'Escalation cancelled');
   }
 

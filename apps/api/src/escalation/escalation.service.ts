@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../database/prisma.service';
@@ -12,6 +12,8 @@ import { QUEUE_NAMES } from '../queue/queue.module';
 
 @Injectable()
 export class EscalationService {
+  private readonly logger = new Logger(EscalationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.ESCALATION) private readonly escalationQueue: Queue,
@@ -134,6 +136,7 @@ export class EscalationService {
           contact: { select: { name: true, email: true } },
           commitment: { select: { title: true, status: true } },
           actionItem: { select: { title: true, status: true } },
+          meeting: { select: { title: true, status: true } },
         },
       }),
       this.prisma.escalationLog.count({ where }),
@@ -155,17 +158,33 @@ export class EscalationService {
     });
     if (!rule) throw new NotFoundException('Active escalation rule not found');
 
-    // Check if there's already a pending chain for this target
-    const existingPending = await this.prisma.escalationLog.findFirst({
+    // Check if there's already an active chain for this target
+    const existingActive = await this.prisma.escalationLog.findFirst({
       where: {
         escalationRuleId: ruleId,
-        escalationStatus: 'PENDING',
-        ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+        escalationStatus: { in: ['PENDING', 'SENT', 'DELIVERED'] },
+        ...this.buildTargetFilter(targetId, targetType),
       },
     });
 
-    if (existingPending) {
+    if (existingActive) {
       throw new BadRequestException('An escalation chain is already active for this target');
+    }
+
+    // Enforce cooldown: check if a recent chain was cancelled/completed within cooldown window
+    const cooldownSince = new Date(Date.now() - rule.cooldownMinutes * 60 * 1000);
+    const recentChain = await this.prisma.escalationLog.findFirst({
+      where: {
+        escalationRuleId: ruleId,
+        escalationStatus: 'CANCELLED',
+        sentAt: { gte: cooldownSince },
+        ...this.buildTargetFilter(targetId, targetType),
+      },
+    });
+    if (recentChain) {
+      throw new BadRequestException(
+        `Cooldown period active. Wait ${rule.cooldownMinutes} minutes between escalation triggers.`,
+      );
     }
 
     await this.escalationQueue.add('execute-escalation', {
@@ -183,7 +202,6 @@ export class EscalationService {
     targetId: string,
     targetType: string,
     ruleId: string,
-    requestedStep: number,
     retryCount: number,
   ) {
     const rule = await this.prisma.escalationRule.findUnique({ where: { id: ruleId } });
@@ -191,9 +209,10 @@ export class EscalationService {
 
     const steps = rule.steps as any[];
 
-    // Determine current escalation level from the target
+    // Determine current escalation level and title from the target
     let currentLevel = 0;
     let targetTitle = '';
+
     if (targetType === 'COMMITMENT') {
       const commitment = await this.prisma.commitment.findUnique({ where: { id: targetId } });
       if (!commitment || commitment.status === 'COMPLETED') return;
@@ -204,6 +223,18 @@ export class EscalationService {
       if (!actionItem || actionItem.status === 'COMPLETED') return;
       currentLevel = actionItem.currentEscalationLevel;
       targetTitle = actionItem.title;
+    } else if (targetType === 'MEETING_PREP' || targetType === 'ACKNOWLEDGMENT') {
+      const meeting = await this.prisma.meeting.findUnique({ where: { id: targetId } });
+      if (!meeting || meeting.status === 'COMPLETED' || meeting.status === 'CANCELLED') return;
+      targetTitle = meeting.title;
+      // Meeting escalations use log count as level since meetings don't have escalation fields
+      const logCount = await this.prisma.escalationLog.count({
+        where: { escalationRuleId: ruleId, meetingId: targetId, escalationStatus: 'SENT' },
+      });
+      currentLevel = logCount;
+    } else {
+      this.logger.warn(`Unknown target type: ${targetType}`);
+      return;
     }
 
     // Check if a response was received and rule says to stop
@@ -212,22 +243,21 @@ export class EscalationService {
         where: {
           escalationRuleId: ruleId,
           escalationStatus: 'RESPONDED',
-          ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+          ...this.buildTargetFilter(targetId, targetType),
         },
       });
       if (hasResponse) return;
     }
 
-    // Check for cancelled/paused status
-    const cancelledOrPaused = await this.prisma.escalationLog.findFirst({
+    // Check for active pause — only PAUSED blocks execution (not CANCELLED)
+    const pausedLog = await this.prisma.escalationLog.findFirst({
       where: {
         escalationRuleId: ruleId,
-        escalationStatus: { in: ['CANCELLED', 'PAUSED'] },
-        ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+        escalationStatus: 'PAUSED',
+        ...this.buildTargetFilter(targetId, targetType),
       },
-      orderBy: { sentAt: 'desc' },
     });
-    if (cancelledOrPaused) return;
+    if (pausedLog) return;
 
     const nextStep = steps.find((s: any) => s.stepOrder === currentLevel + 1);
     if (!nextStep) {
@@ -249,7 +279,7 @@ export class EscalationService {
     // Generate message content based on tone
     const messageContent = this.generateMessage(nextStep, targetTitle, currentLevel + 1, steps.length);
 
-    // Create escalation log
+    // Create escalation log with proper target FK
     const logData: Record<string, unknown> = {
       userId,
       escalationRuleId: ruleId,
@@ -265,11 +295,12 @@ export class EscalationService {
     };
 
     if (targetType === 'COMMITMENT') logData.commitmentId = targetId;
-    if (targetType === 'ACTION_ITEM') logData.actionItemId = targetId;
+    else if (targetType === 'ACTION_ITEM') logData.actionItemId = targetId;
+    else if (targetType === 'MEETING_PREP' || targetType === 'ACKNOWLEDGMENT') logData.meetingId = targetId;
 
     await this.prisma.escalationLog.create({ data: logData as any });
 
-    // Update current escalation level on the target
+    // Update current escalation level on the target (only for commitment/action item)
     if (targetType === 'COMMITMENT') {
       await this.prisma.commitment.update({
         where: { id: targetId },
@@ -321,7 +352,7 @@ export class EscalationService {
         escalationRuleId: await this.findRuleForTarget(userId, targetId, targetType),
         stepOrder: 0,
         targetType: targetType as any,
-        ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+        ...this.buildTargetFkData(targetId, targetType),
         recipientEmail: 'system',
         channel: 'IN_APP' as any,
         tone: 'PROFESSIONAL' as any,
@@ -333,23 +364,20 @@ export class EscalationService {
   }
 
   async resumeEscalation(userId: string, targetId: string, targetType: string) {
-    // Remove the paused marker by finding the paused log
+    // Find the most recent PAUSED log for this target
     const pausedLog = await this.prisma.escalationLog.findFirst({
       where: {
         userId,
         escalationStatus: 'PAUSED',
-        ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+        ...this.buildTargetFilter(targetId, targetType),
       },
       orderBy: { sentAt: 'desc' },
     });
 
     if (!pausedLog) throw new NotFoundException('No paused escalation found for this target');
 
-    // Mark the pause log as cancelled (clearing the pause)
-    await this.prisma.escalationLog.update({
-      where: { id: pausedLog.id },
-      data: { escalationStatus: 'CANCELLED' },
-    });
+    // Delete the pause marker so executeStep can proceed
+    await this.prisma.escalationLog.delete({ where: { id: pausedLog.id } });
 
     // Re-trigger from current level
     const ruleId = pausedLog.escalationRuleId;
@@ -372,7 +400,7 @@ export class EscalationService {
         escalationRuleId: ruleId,
         stepOrder: 0,
         targetType: targetType as any,
-        ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+        ...this.buildTargetFkData(targetId, targetType),
         recipientEmail: 'system',
         channel: 'IN_APP' as any,
         tone: 'PROFESSIONAL' as any,
@@ -540,6 +568,20 @@ export class EscalationService {
 
   // ── Helpers ──
 
+  private buildTargetFilter(targetId: string, targetType: string): Prisma.EscalationLogWhereInput {
+    if (targetType === 'COMMITMENT') return { commitmentId: targetId };
+    if (targetType === 'ACTION_ITEM') return { actionItemId: targetId };
+    if (targetType === 'MEETING_PREP' || targetType === 'ACKNOWLEDGMENT') return { meetingId: targetId };
+    return {};
+  }
+
+  private buildTargetFkData(targetId: string, targetType: string): Record<string, string> {
+    if (targetType === 'COMMITMENT') return { commitmentId: targetId };
+    if (targetType === 'ACTION_ITEM') return { actionItemId: targetId };
+    if (targetType === 'MEETING_PREP' || targetType === 'ACKNOWLEDGMENT') return { meetingId: targetId };
+    return {};
+  }
+
   private async resolveRecipient(userId: string, step: any): Promise<string> {
     // If step specifies a contact, look up their email
     if (step.recipientContactId) {
@@ -609,7 +651,7 @@ export class EscalationService {
     const log = await this.prisma.escalationLog.findFirst({
       where: {
         userId,
-        ...(targetType === 'COMMITMENT' ? { commitmentId: targetId } : { actionItemId: targetId }),
+        ...this.buildTargetFilter(targetId, targetType),
       },
       orderBy: { sentAt: 'desc' },
     });

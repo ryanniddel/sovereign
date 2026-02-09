@@ -421,12 +421,13 @@ model Meeting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  calendarEvent CalendarEvent?
-  participants  MeetingParticipant[]
-  commitments   Commitment[]
-  actionItems   ActionItem[]
-  agreements    Agreement[]
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEvent  CalendarEvent?
+  participants   MeetingParticipant[]
+  commitments    Commitment[]
+  actionItems    ActionItem[]
+  agreements     Agreement[]
+  escalationLogs EscalationLog[]
 
   @@index([userId, status])
   @@index([userId, createdAt])
@@ -635,6 +636,8 @@ enum EscalationTrigger {
   MISSED_DEADLINE
   MISSED_PRE_READ
   NIGHTLY_CLOSEOUT
+  SCORE_DROP
+  CUSTOM
 }
 
 model EscalationRule {
@@ -709,6 +712,7 @@ model EscalationLog {
   // Separate FKs for polymorphic target (one will be set based on targetType)
   commitmentId String? @map("commitment_id")
   actionItemId String? @map("action_item_id")
+  meetingId    String? @map("meeting_id")
 
   // Recipient
   recipientEmail     String  @map("recipient_email")
@@ -731,10 +735,12 @@ model EscalationLog {
   contact        Contact?        @relation(fields: [recipientContactId], references: [id], onDelete: SetNull)
   commitment     Commitment?     @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
   actionItem     ActionItem?     @relation(fields: [actionItemId], references: [id], onDelete: SetNull)
+  meeting        Meeting?        @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
   @@index([userId, sentAt])
   @@index([targetType, commitmentId])
   @@index([targetType, actionItemId])
+  @@index([targetType, meetingId])
   @@map("escalation_logs")
 }
 

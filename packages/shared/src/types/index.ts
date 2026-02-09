@@ -389,6 +389,8 @@ export interface EscalationStep {
   delayMinutes: number;
   tone: EscalationTone;
   messageTemplate?: string;
+  recipientEmail?: string;
+  recipientContactId?: string;
 }
 
 export interface EscalationRule {
@@ -414,6 +416,7 @@ export interface EscalationLog {
   targetType: EscalationTargetType;
   commitmentId?: string;
   actionItemId?: string;
+  meetingId?: string;
   recipientEmail: string;
   recipientContactId?: string;
   channel: EscalationChannel;

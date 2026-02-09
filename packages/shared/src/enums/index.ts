@@ -98,6 +98,8 @@ export enum EscalationTrigger {
   MISSED_DEADLINE = 'MISSED_DEADLINE',
   MISSED_PRE_READ = 'MISSED_PRE_READ',
   NIGHTLY_CLOSEOUT = 'NIGHTLY_CLOSEOUT',
+  SCORE_DROP = 'SCORE_DROP',
+  CUSTOM = 'CUSTOM',
 }
 
 export enum EscalationChannel {

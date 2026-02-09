@@ -147,6 +147,8 @@ export const ESCALATION_TRIGGER_LABELS: Record<EscalationTrigger, string> = {
   [EscalationTrigger.MISSED_DEADLINE]: 'Missed Deadline',
   [EscalationTrigger.MISSED_PRE_READ]: 'Missed Pre-Read',
   [EscalationTrigger.NIGHTLY_CLOSEOUT]: 'Nightly Closeout',
+  [EscalationTrigger.SCORE_DROP]: 'Score Drop',
+  [EscalationTrigger.CUSTOM]: 'Custom',
 };
 
 export const ESCALATION_CHANNEL_LABELS: Record<EscalationChannel, string> = {

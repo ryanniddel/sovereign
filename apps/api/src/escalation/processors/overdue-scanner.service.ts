@@ -1,29 +1,24 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue, Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../database/prisma.service';
 import { QUEUE_NAMES } from '../../queue/queue.module';
 
-@Processor('escalation')
-export class OverdueScannerProcessor extends WorkerHost {
-  private readonly logger = new Logger(OverdueScannerProcessor.name);
+@Injectable()
+export class OverdueScannerService {
+  private readonly logger = new Logger(OverdueScannerService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.ESCALATION) private readonly escalationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job) {
-    if (job.name !== 'overdue-scan') return;
-
-    this.logger.log('Starting overdue item scan');
+  async runScan() {
     const now = new Date();
 
-    await Promise.all([
+    // Run each scan independently — one failure does not block others
+    const results = await Promise.allSettled([
       this.scanOverdueItems(now),
       this.scanMissedDeadlines(now),
       this.scanUnacknowledgedMeetings(now),
@@ -31,7 +26,11 @@ export class OverdueScannerProcessor extends WorkerHost {
       this.scanMissedCloseouts(now),
     ]);
 
-    this.logger.log('Overdue scan complete');
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        this.logger.error(`Scan sub-task failed: ${result.reason}`);
+      }
+    }
   }
 
   // ── OVERDUE trigger: commitments & action items past due ──
@@ -52,6 +51,16 @@ export class OverdueScannerProcessor extends WorkerHost {
       });
 
       if (commitment.escalationRuleId) {
+        // Dedup: check if there's already an active chain for this target
+        const existing = await this.prisma.escalationLog.findFirst({
+          where: {
+            escalationRuleId: commitment.escalationRuleId,
+            commitmentId: commitment.id,
+            escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+          },
+        });
+        if (existing) continue;
+
         await this.escalationQueue.add('execute-escalation', {
           userId: commitment.userId,
           targetId: commitment.id,
@@ -78,6 +87,16 @@ export class OverdueScannerProcessor extends WorkerHost {
       });
 
       if (action.escalationRuleId) {
+        // Dedup: check if there's already an active chain for this target
+        const existing = await this.prisma.escalationLog.findFirst({
+          where: {
+            escalationRuleId: action.escalationRuleId,
+            actionItemId: action.id,
+            escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+          },
+        });
+        if (existing) continue;
+
         await this.escalationQueue.add('execute-escalation', {
           userId: action.userId,
           targetId: action.id,
@@ -251,7 +270,7 @@ export class OverdueScannerProcessor extends WorkerHost {
         where: {
           escalationRuleId: rule.id,
           userId: meeting.userId,
-          targetType: 'ACKNOWLEDGMENT',
+          meetingId: meeting.id,
           escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
         },
       });
@@ -302,7 +321,7 @@ export class OverdueScannerProcessor extends WorkerHost {
         where: {
           escalationRuleId: rule.id,
           userId: meeting.userId,
-          targetType: 'MEETING_PREP',
+          meetingId: meeting.id,
           escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
         },
       });
@@ -327,21 +346,24 @@ export class OverdueScannerProcessor extends WorkerHost {
   // ── NIGHTLY_CLOSEOUT trigger: users who haven't completed daily closeout ──
 
   private async scanMissedCloseouts(now: Date) {
-    // Only run after 10 PM (22:00) — allow users time to close out
-    const hour = now.getUTCHours();
-    if (hour < 22) return;
-
-    const todayStart = new Date(now);
-    todayStart.setUTCHours(0, 0, 0, 0);
-
     const closeoutRules = await this.prisma.escalationRule.findMany({
       where: { triggerType: 'NIGHTLY_CLOSEOUT', isActive: true },
+      include: { user: { select: { id: true, timezone: true } } },
     });
 
     if (closeoutRules.length === 0) return;
 
     let triggered = 0;
     for (const rule of closeoutRules) {
+      // Use user's timezone to determine if it's past 10 PM for them
+      const userTz = rule.user?.timezone || 'UTC';
+      const userNow = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
+      const userHour = userNow.getHours();
+      if (userHour < 22) continue;
+
+      const todayStart = new Date(userNow);
+      todayStart.setHours(0, 0, 0, 0);
+
       // Check if user has completed closeout today
       const closeout = await this.prisma.dailyCloseout.findFirst({
         where: {
@@ -353,7 +375,7 @@ export class OverdueScannerProcessor extends WorkerHost {
 
       if (closeout) continue; // Already completed
 
-      // Check if already escalated today
+      // Check if already notified today
       const existing = await this.prisma.escalationLog.findFirst({
         where: {
           escalationRuleId: rule.id,
@@ -364,28 +386,36 @@ export class OverdueScannerProcessor extends WorkerHost {
       });
       if (existing) continue;
 
-      await this.escalationQueue.add('execute-escalation', {
-        userId: rule.userId,
-        targetId: rule.userId, // target is the user themselves
-        targetType: 'COMMITMENT', // use COMMITMENT as generic target
-        ruleId: rule.id,
-        stepOrder: 0,
-        retryCount: 0,
-      });
-
+      // Send notification only — closeout is user-scoped, not a specific item
       await this.notificationQueue.add('send-notification', {
         userId: rule.userId,
         channel: 'IN_APP',
         priority: 'HIGH',
         title: 'Daily closeout reminder',
-        message: 'You haven\'t completed your daily closeout yet. Complete it to maintain your streak.',
+        message: "You haven't completed your daily closeout yet. Complete it to maintain your streak.",
+      });
+
+      // Create log entry for audit trail
+      await this.prisma.escalationLog.create({
+        data: {
+          userId: rule.userId,
+          escalationRuleId: rule.id,
+          stepOrder: 1,
+          targetType: 'COMMITMENT' as any,
+          recipientEmail: 'system',
+          channel: 'IN_APP' as any,
+          tone: 'PROFESSIONAL' as any,
+          messageContent: 'Daily closeout reminder sent',
+          escalationStatus: 'SENT',
+          sentAt: new Date(),
+        },
       });
 
       triggered++;
     }
 
     if (triggered > 0) {
-      this.logger.log(`Nightly closeout scan: triggered ${triggered} escalation(s)`);
+      this.logger.log(`Nightly closeout scan: triggered ${triggered} reminder(s)`);
     }
   }
 }

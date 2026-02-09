@@ -1,16 +1,7 @@
-import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsBoolean, IsNumber, Min } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsBoolean, IsNumber, Min, ArrayMinSize } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EscalationTrigger } from '@sovereign/shared';
-
-class EscalationStepDto {
-  stepOrder: number;
-  channel: string;
-  delayMinutes: number;
-  tone: string;
-  messageTemplate?: string;
-  recipientEmail?: string;
-  recipientContactId?: string;
-}
+import { EscalationStepDto } from './escalation-step.dto';
 
 export class UpdateEscalationRuleDto {
   @IsOptional()
@@ -27,6 +18,7 @@ export class UpdateEscalationRuleDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => EscalationStepDto)
   steps?: EscalationStepDto[];
