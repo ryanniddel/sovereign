@@ -134,6 +134,7 @@ model Contact {
 
   @@unique([userId, email])
   @@index([userId])
+  @@index([userId, name])
   @@map("contacts")
 }
 
@@ -431,6 +432,7 @@ model Meeting {
 
   @@index([userId, status])
   @@index([userId, createdAt])
+  @@index([userId, scheduledStartTime])
   @@index([recurringGroupId])
   @@map("meetings")
 }

@@ -19,47 +19,42 @@ export class SearchCleanupProcessor extends WorkerHost {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Remove recent searches older than 30 days
+    // 1. Remove recent searches older than 30 days (single batch query)
     const { count: recentDeleted } = await this.prisma.recentSearch.deleteMany({
       where: {
         createdAt: { lt: thirtyDaysAgo },
       },
     });
 
-    // Keep only the most recent 50 searches per user
-    const users = await this.prisma.user.findMany({
-      select: { id: true },
-    });
+    // 2. Trim excess recent searches per user (batch approach)
+    // Find users who have more than 50 recent searches
+    const usersWithExcess = await this.prisma.$queryRaw<{ user_id: string; cnt: bigint }[]>`
+      SELECT user_id, COUNT(*) as cnt
+      FROM recent_searches
+      GROUP BY user_id
+      HAVING COUNT(*) > 50
+    `;
 
     let excessDeleted = 0;
-
-    for (const user of users) {
-      const totalSearches = await this.prisma.recentSearch.count({
-        where: { userId: user.id },
+    for (const row of usersWithExcess) {
+      const excess = Number(row.cnt) - 50;
+      // Find the oldest excess entries and delete them
+      const oldest = await this.prisma.recentSearch.findMany({
+        where: { userId: row.user_id },
+        orderBy: { createdAt: 'asc' },
+        take: excess,
+        select: { id: true },
       });
 
-      if (totalSearches > 50) {
-        // Find the 50th most recent search
-        const threshold = await this.prisma.recentSearch.findMany({
-          where: { userId: user.id },
-          orderBy: { createdAt: 'desc' },
-          skip: 50,
-          take: 1,
+      if (oldest.length > 0) {
+        const { count } = await this.prisma.recentSearch.deleteMany({
+          where: { id: { in: oldest.map((o) => o.id) } },
         });
-
-        if (threshold.length > 0) {
-          const { count } = await this.prisma.recentSearch.deleteMany({
-            where: {
-              userId: user.id,
-              createdAt: { lte: threshold[0].createdAt },
-            },
-          });
-          excessDeleted += count;
-        }
+        excessDeleted += count;
       }
     }
 
-    // Clean up unused saved searches (never used, created more than 90 days ago)
+    // 3. Clean up unused saved searches (never used, created more than 90 days ago)
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     const { count: unusedDeleted } = await this.prisma.savedSearch.deleteMany({
       where: {

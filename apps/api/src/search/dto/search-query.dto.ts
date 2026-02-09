@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, MinLength, IsEnum, IsDateString, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsArray, MinLength, IsIn, IsDateString, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationQueryDto } from '../../common';
 
@@ -21,7 +21,7 @@ export class SearchQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsIn(SEARCH_ENTITY_TYPES, { each: true })
   @Transform(({ value }) => (typeof value === 'string' ? value.split(',').map((s: string) => s.trim()) : value))
   entityTypes?: string[];
 

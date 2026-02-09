@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { SearchQueryDto, SEARCH_ENTITY_TYPES } from './dto/search-query.dto';
@@ -23,6 +23,13 @@ export interface SearchGroup {
   label: string;
   results: SearchResult[];
   total: number;
+}
+
+interface SearchFilters {
+  status?: string;
+  priority?: string;
+  from?: string;
+  to?: string;
 }
 
 // Priority weights for relevance boosting
@@ -55,6 +62,8 @@ const GROUP_LABELS: Record<string, string> = {
 
 @Injectable()
 export class SearchService {
+  private readonly logger = new Logger(SearchService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ── Universal Search ──
@@ -68,6 +77,12 @@ export class SearchService {
     const lowerTerm = searchTerm.toLowerCase();
     const types = query.entityTypes || [...SEARCH_ENTITY_TYPES];
     const limit = query.pageSize;
+    const filters: SearchFilters = {
+      status: query.status,
+      priority: query.priority,
+      from: query.from,
+      to: query.to,
+    };
 
     // Run all entity searches in parallel for <375ms target
     const searchPromises: Promise<SearchResult[]>[] = [];
@@ -79,15 +94,15 @@ export class SearchService {
     }
     if (types.includes('meetings')) {
       typeOrder.push('meeting');
-      searchPromises.push(this.searchMeetings(userId, searchTerm, lowerTerm, limit, query));
+      searchPromises.push(this.searchMeetings(userId, searchTerm, lowerTerm, limit, filters));
     }
     if (types.includes('commitments')) {
       typeOrder.push('commitment');
-      searchPromises.push(this.searchCommitments(userId, searchTerm, lowerTerm, limit, query));
+      searchPromises.push(this.searchCommitments(userId, searchTerm, lowerTerm, limit, filters));
     }
     if (types.includes('actionItems')) {
       typeOrder.push('actionItem');
-      searchPromises.push(this.searchActionItems(userId, searchTerm, lowerTerm, limit, query));
+      searchPromises.push(this.searchActionItems(userId, searchTerm, lowerTerm, limit, filters));
     }
     if (types.includes('agreements')) {
       typeOrder.push('agreement');
@@ -95,7 +110,7 @@ export class SearchService {
     }
     if (types.includes('calendarEvents')) {
       typeOrder.push('calendarEvent');
-      searchPromises.push(this.searchCalendarEvents(userId, searchTerm, lowerTerm, limit, query));
+      searchPromises.push(this.searchCalendarEvents(userId, searchTerm, lowerTerm, limit, filters));
     }
     if (types.includes('escalationRules')) {
       typeOrder.push('escalationRule');
@@ -110,7 +125,8 @@ export class SearchService {
       searchPromises.push(this.searchFocusModes(userId, searchTerm, lowerTerm, limit));
     }
 
-    const resultSets = await Promise.all(searchPromises);
+    // Use allSettled for graceful degradation — partial results if one entity fails
+    const settledResults = await Promise.allSettled(searchPromises);
 
     // Build grouped results
     const groups: SearchGroup[] = [];
@@ -118,7 +134,14 @@ export class SearchService {
 
     for (let i = 0; i < typeOrder.length; i++) {
       const type = typeOrder[i];
-      const results = resultSets[i];
+      const settled = settledResults[i];
+
+      if (settled.status === 'rejected') {
+        this.logger.warn(`Search for ${type} failed: ${settled.reason}`);
+        continue;
+      }
+
+      const results = settled.value;
       if (results.length > 0) {
         groups.push({
           type,
@@ -150,18 +173,24 @@ export class SearchService {
 
   async quickSearch(userId: string, q: string): Promise<SearchResult[]> {
     const searchTerm = q.trim();
+    if (!searchTerm || searchTerm.length < 2) return [];
+
     const lowerTerm = searchTerm.toLowerCase();
     const limit = 8;
 
     // Search only the most common entities in parallel
-    const [contacts, meetings, commitments, actionItems] = await Promise.all([
+    const settled = await Promise.allSettled([
       this.searchContacts(userId, searchTerm, lowerTerm, 3),
       this.searchMeetings(userId, searchTerm, lowerTerm, 3, {}),
       this.searchCommitments(userId, searchTerm, lowerTerm, 3, {}),
       this.searchActionItems(userId, searchTerm, lowerTerm, 3, {}),
     ]);
 
-    const results = [...contacts, ...meetings, ...commitments, ...actionItems];
+    const results: SearchResult[] = [];
+    for (const s of settled) {
+      if (s.status === 'fulfilled') results.push(...s.value);
+    }
+
     results.sort((a, b) => b.relevance - a.relevance);
     return results.slice(0, limit);
   }
@@ -214,9 +243,9 @@ export class SearchService {
     searchTerm: string,
     lowerTerm: string,
     limit: number,
-    query: any,
+    filters: SearchFilters,
   ): Promise<SearchResult[]> {
-    const where: any = {
+    const where: Prisma.MeetingWhereInput = {
       userId,
       OR: [
         { title: { contains: searchTerm, mode: 'insensitive' } },
@@ -225,9 +254,9 @@ export class SearchService {
         { decisionRequired: { contains: searchTerm, mode: 'insensitive' } },
       ],
     };
-    if (query.status) where.status = query.status;
-    if (query.from) where.createdAt = { ...(where.createdAt || {}), gte: new Date(query.from) };
-    if (query.to) where.createdAt = { ...(where.createdAt || {}), lte: new Date(query.to) };
+    if (filters.status) where.status = filters.status as any;
+    if (filters.from) where.scheduledStartTime = { ...(where.scheduledStartTime as any || {}), gte: new Date(filters.from) };
+    if (filters.to) where.scheduledStartTime = { ...(where.scheduledStartTime as any || {}), lte: new Date(filters.to) };
 
     const meetings = await this.prisma.meeting.findMany({
       where,
@@ -265,17 +294,17 @@ export class SearchService {
     searchTerm: string,
     lowerTerm: string,
     limit: number,
-    query: any,
+    filters: SearchFilters,
   ): Promise<SearchResult[]> {
-    const where: any = {
+    const where: Prisma.CommitmentWhereInput = {
       userId,
       OR: [
         { title: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } },
       ],
     };
-    if (query.status) where.status = query.status;
-    if (query.priority) where.priority = query.priority;
+    if (filters.status) where.status = filters.status as any;
+    if (filters.priority) where.priority = filters.priority as any;
 
     const commitments = await this.prisma.commitment.findMany({
       where,
@@ -316,17 +345,17 @@ export class SearchService {
     searchTerm: string,
     lowerTerm: string,
     limit: number,
-    query: any,
+    filters: SearchFilters,
   ): Promise<SearchResult[]> {
-    const where: any = {
+    const where: Prisma.ActionItemWhereInput = {
       userId,
       OR: [
         { title: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } },
       ],
     };
-    if (query.status) where.status = query.status;
-    if (query.priority) where.priority = query.priority;
+    if (filters.status) where.status = filters.status as any;
+    if (filters.priority) where.priority = filters.priority as any;
 
     const items = await this.prisma.actionItem.findMany({
       where,
@@ -407,9 +436,9 @@ export class SearchService {
     searchTerm: string,
     lowerTerm: string,
     limit: number,
-    query: any,
+    filters: SearchFilters,
   ): Promise<SearchResult[]> {
-    const where: any = {
+    const where: Prisma.CalendarEventWhereInput = {
       userId,
       OR: [
         { title: { contains: searchTerm, mode: 'insensitive' } },
@@ -417,8 +446,8 @@ export class SearchService {
         { location: { contains: searchTerm, mode: 'insensitive' } },
       ],
     };
-    if (query.from) where.startTime = { ...(where.startTime || {}), gte: new Date(query.from) };
-    if (query.to) where.startTime = { ...(where.startTime || {}), lte: new Date(query.to) };
+    if (filters.from) where.startTime = { ...(where.startTime as any || {}), gte: new Date(filters.from) };
+    if (filters.to) where.startTime = { ...(where.startTime as any || {}), lte: new Date(filters.to) };
 
     const events = await this.prisma.calendarEvent.findMany({
       where,
@@ -494,20 +523,45 @@ export class SearchService {
     lowerTerm: string,
     limit: number,
   ): Promise<SearchResult[]> {
-    // Search briefings by type name or date — content is JSON so we search by type labels
+    // Build filter for briefings — match type labels, date patterns, or general text
+    const typeFilter: Prisma.BriefingWhereInput[] = [];
+    const upperTerm = searchTerm.toUpperCase();
+
+    // Match type labels: "morning", "nightly", "briefing", "review"
+    if ('MORNING'.includes(upperTerm) || 'MORNING BRIEFING'.toLowerCase().includes(lowerTerm)) {
+      typeFilter.push({ type: 'MORNING' });
+    }
+    if ('NIGHTLY'.includes(upperTerm) || 'NIGHTLY REVIEW'.toLowerCase().includes(lowerTerm)) {
+      typeFilter.push({ type: 'NIGHTLY' });
+    }
+
+    // If term matches a date pattern (e.g. "2026-02-08" or "Feb"), search by date
+    const dateMatch = searchTerm.match(/^(\d{4}-\d{2}-\d{2})$/);
+    if (dateMatch) {
+      const searchDate = new Date(dateMatch[1]);
+      if (!isNaN(searchDate.getTime())) {
+        const nextDay = new Date(searchDate.getTime() + 24 * 60 * 60 * 1000);
+        typeFilter.push({ date: { gte: searchDate, lt: nextDay } });
+      }
+    }
+
+    // If no specific filter matched, search broadly by both types (shows recent briefings)
+    if (typeFilter.length === 0 && 'briefing'.includes(lowerTerm)) {
+      typeFilter.push({ type: 'MORNING' });
+      typeFilter.push({ type: 'NIGHTLY' });
+    }
+
+    // Still no match — return empty (briefing content is JSON, not text-searchable)
+    if (typeFilter.length === 0) return [];
+
     const briefings = await this.prisma.briefing.findMany({
       where: {
         userId,
-        OR: [
-          { type: { equals: searchTerm.toUpperCase() === 'MORNING' ? 'MORNING' : searchTerm.toUpperCase() === 'NIGHTLY' ? 'NIGHTLY' : undefined as any } },
-        ],
+        OR: typeFilter,
       },
       take: limit,
       orderBy: { date: 'desc' },
     });
-
-    // If no type match, return empty (briefings don't have searchable text fields)
-    if (briefings.length === 0) return [];
 
     return briefings.map((b) => ({
       id: b.id,
@@ -516,9 +570,11 @@ export class SearchService {
       subtitle: b.type,
       status: b.isCompleted ? 'COMPLETED' : b.readAt ? 'READ' : 'UNREAD',
       date: b.date,
-      relevance: this.calculateRelevance(b.type, lowerTerm, {
-        recencyDate: b.date,
-      }),
+      relevance: this.calculateRelevance(
+        b.type === 'MORNING' ? 'Morning Briefing' : 'Nightly Review',
+        lowerTerm,
+        { recencyDate: b.date },
+      ),
       metadata: {
         type: b.type,
         date: b.date,
