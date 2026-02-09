@@ -99,6 +99,9 @@ export class CommitmentsService {
       throw new BadRequestException('Cannot delegate back to the original delegator');
     }
 
+    // Recursive delegation chain detection: prevent cycles
+    await this.detectDelegationCycle(commitment.id, dto.delegateToId);
+
     return this.prisma.commitment.update({
       where: { id },
       data: {
@@ -107,6 +110,7 @@ export class CommitmentsService {
         delegatedToId: dto.delegateToId,
         delegatedAt: new Date(),
         delegatorRetainsAccountability: dto.retainAccountability ?? true,
+        delegationReason: dto.reason,
       },
     });
   }
@@ -114,5 +118,42 @@ export class CommitmentsService {
   async remove(userId: string, id: string) {
     await this.findOne(userId, id);
     return this.prisma.commitment.delete({ where: { id } });
+  }
+
+  /**
+   * Detect delegation cycles by walking the chain of delegated commitments.
+   * Prevents A→B→C→A circular delegation patterns.
+   */
+  private async detectDelegationCycle(commitmentId: string, proposedDelegateeId: string) {
+    const visited = new Set<string>();
+    visited.add(commitmentId);
+
+    let currentOwnerId: string | null = proposedDelegateeId;
+    const MAX_DEPTH = 10;
+    let depth = 0;
+
+    while (currentOwnerId && depth < MAX_DEPTH) {
+      const delegatedCommitment: { id: string; delegatedToId: string | null } | null =
+        await this.prisma.commitment.findFirst({
+          where: {
+            isDelegated: true,
+            ownerId: currentOwnerId,
+            delegatedToId: { not: null },
+          },
+          select: { id: true, delegatedToId: true },
+        });
+
+      if (!delegatedCommitment) break;
+
+      if (visited.has(delegatedCommitment.id)) {
+        throw new BadRequestException(
+          'Delegation would create a circular chain. This commitment traces back to the proposed delegatee.',
+        );
+      }
+
+      visited.add(delegatedCommitment.id);
+      currentOwnerId = delegatedCommitment.delegatedToId;
+      depth++;
+    }
   }
 }

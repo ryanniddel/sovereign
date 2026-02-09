@@ -102,18 +102,15 @@ export class DailyCloseoutService {
         });
         rescheduled++;
       } else if (resolution.resolution === 'delegated') {
-        const delegateData: Record<string, unknown> = {
-          status: 'DELEGATED',
-          ownerId: resolution.delegateToId,
-        };
-        if (resolution.itemType === 'commitment') {
-          delegateData.isDelegated = true;
-          delegateData.delegatedToId = resolution.delegateToId;
-          delegateData.delegatedAt = new Date();
-        }
         await (this.prisma[model] as any).update({
           where: { id: resolution.itemId },
-          data: delegateData,
+          data: {
+            status: 'DELEGATED',
+            ownerId: resolution.delegateToId,
+            isDelegated: true,
+            delegatedToId: resolution.delegateToId,
+            delegatedAt: new Date(),
+          },
         });
         delegated++;
       }

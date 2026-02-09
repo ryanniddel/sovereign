@@ -68,6 +68,13 @@ export class AccountabilityController {
     return wrapResponse(items);
   }
 
+  @Get('benchmarks')
+  async getBenchmarks(@CurrentUser() currentUser: { auth0Id: string; email: string }) {
+    const userId = await this.resolveUserId(currentUser);
+    const benchmarks = await this.accountabilityService.getBenchmarks(userId);
+    return wrapResponse(benchmarks);
+  }
+
   @Post('detect-overdue')
   async detectOverdue(@CurrentUser() currentUser: { auth0Id: string; email: string }) {
     const userId = await this.resolveUserId(currentUser);

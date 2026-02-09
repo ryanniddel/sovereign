@@ -514,6 +514,7 @@ model Commitment {
   delegatedToId                String?   @map("delegated_to_id")
   delegatedAt                  DateTime? @map("delegated_at")
   delegatorRetainsAccountability Boolean @default(true) @map("delegator_retains_accountability")
+  delegationReason             String?   @map("delegation_reason")
 
   // Reschedule tracking
   rescheduleCount Int @default(0) @map("reschedule_count")
@@ -568,6 +569,13 @@ model ActionItem {
   escalationRuleId      String?   @map("escalation_rule_id")
   currentEscalationLevel Int      @default(0) @map("current_escalation_level")
   lastEscalatedAt       DateTime? @map("last_escalated_at")
+
+  // Delegation
+  isDelegated                  Boolean   @default(false) @map("is_delegated")
+  delegatedToId                String?   @map("delegated_to_id")
+  delegatedAt                  DateTime? @map("delegated_at")
+  delegatorRetainsAccountability Boolean @default(true) @map("delegator_retains_accountability")
+  delegationReason             String?   @map("delegation_reason")
 
   // Reschedule tracking
   rescheduleCount Int @default(0) @map("reschedule_count")

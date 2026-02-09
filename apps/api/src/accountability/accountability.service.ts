@@ -387,4 +387,103 @@ export class AccountabilityService {
   async getStreaks(userId: string) {
     return this.streaksService.getUserStreaks(userId);
   }
+
+  // ════════════════════════════════════════════════════════════════
+  // BENCHMARKS
+  // ════════════════════════════════════════════════════════════════
+
+  async getBenchmarks(userId: string) {
+    const allScores = await this.prisma.accountabilityScore.findMany({
+      where: { userId },
+      orderBy: { date: 'asc' },
+    });
+
+    if (allScores.length === 0) {
+      return {
+        personalBest: 0,
+        personalWorst: 0,
+        lifetimeAverage: 0,
+        last7DayAvg: 0,
+        last30DayAvg: 0,
+        last90DayAvg: 0,
+        totalDaysTracked: 0,
+        percentile: { last7InLifetime: 0, last30InLifetime: 0 },
+        streakRecords: { longestCloseout: 0, longestDelivery: 0, longestOnTime: 0 },
+        milestones: {
+          daysAbove80: 0,
+          daysAbove90: 0,
+          perfectDays: 0,
+          totalCompleted: 0,
+          totalDelegated: 0,
+          totalRescheduled: 0,
+        },
+      };
+    }
+
+    const scores = allScores.map((s) => s.score);
+    const personalBest = Math.max(...scores);
+    const personalWorst = Math.min(...scores);
+    const lifetimeAverage = Math.round((scores.reduce((s, v) => s + v, 0) / scores.length) * 100) / 100;
+
+    // Period averages
+    const now = new Date();
+    const avg = (days: number) => {
+      const since = new Date(now);
+      since.setDate(since.getDate() - days);
+      const periodScores = allScores.filter((s) => s.date >= since).map((s) => s.score);
+      return periodScores.length > 0
+        ? Math.round((periodScores.reduce((a, b) => a + b, 0) / periodScores.length) * 100) / 100
+        : 0;
+    };
+
+    const last7DayAvg = avg(7);
+    const last30DayAvg = avg(30);
+    const last90DayAvg = avg(90);
+
+    // Percentile: where does recent performance rank vs lifetime
+    const calcPercentile = (recentAvg: number) => {
+      const below = scores.filter((s) => s < recentAvg).length;
+      return Math.round((below / scores.length) * 100);
+    };
+
+    // Streak records
+    const streaks = await this.streaksService.getUserStreaks(userId);
+    const getStreak = (type: string) =>
+      streaks.find((s: any) => s.streakType === type)?.longestCount ?? 0;
+
+    // Milestones
+    const daysAbove80 = scores.filter((s) => s >= 80).length;
+    const daysAbove90 = scores.filter((s) => s >= 90).length;
+    const perfectDays = scores.filter((s) => s === 100).length;
+    const totalCompleted = allScores.reduce((s, sc) => s + sc.commitmentsDelivered + sc.actionItemsCompleted, 0);
+    const totalDelegated = allScores.reduce((s, sc) => s + sc.delegatedCount, 0);
+    const totalRescheduled = allScores.reduce((s, sc) => s + sc.rescheduledCount, 0);
+
+    return {
+      personalBest,
+      personalWorst,
+      lifetimeAverage,
+      last7DayAvg,
+      last30DayAvg,
+      last90DayAvg,
+      totalDaysTracked: allScores.length,
+      percentile: {
+        last7InLifetime: calcPercentile(last7DayAvg),
+        last30InLifetime: calcPercentile(last30DayAvg),
+      },
+      streakRecords: {
+        longestCloseout: getStreak('DAILY_CLOSEOUT'),
+        longestDelivery: getStreak('COMMITMENT_DELIVERY'),
+        longestOnTime: getStreak('ON_TIME'),
+      },
+      milestones: {
+        daysAbove80,
+        daysAbove90,
+        perfectDays,
+        totalCompleted,
+        totalDelegated,
+        totalRescheduled,
+      },
+    };
+  }
 }

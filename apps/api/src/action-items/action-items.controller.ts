@@ -89,7 +89,7 @@ export class ActionItemsController {
     @Body() dto: DelegateActionItemDto,
   ) {
     const userId = await this.resolveUserId(currentUser);
-    const item = await this.actionItemsService.delegate(userId, id, dto.delegateToId);
+    const item = await this.actionItemsService.delegate(userId, id, dto);
     return wrapResponse(item);
   }
 

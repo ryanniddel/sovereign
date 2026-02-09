@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../database/prisma.service';
 import { CreateActionItemDto } from './dto/create-action-item.dto';
 import { UpdateActionItemDto } from './dto/update-action-item.dto';
+import { DelegateActionItemDto } from './dto/delegate-action-item.dto';
 import { ActionItemQueryDto } from './dto/action-item-query.dto';
 import { Prisma } from '@prisma/client';
 
@@ -91,13 +92,27 @@ export class ActionItemsService {
     });
   }
 
-  async delegate(userId: string, id: string, delegateToId: string) {
-    await this.findOne(userId, id);
+  async delegate(userId: string, id: string, dto: DelegateActionItemDto) {
+    const item = await this.findOne(userId, id);
+
+    // Upward delegation protection: block delegation back to original delegator
+    if (item.isDelegated && item.delegatedToId === dto.delegateToId) {
+      throw new BadRequestException('Cannot delegate back to the original delegator');
+    }
+
+    // Recursive delegation chain detection: prevent cycles
+    await this.detectDelegationCycle(item.id, dto.delegateToId);
+
     return this.prisma.actionItem.update({
       where: { id },
       data: {
         status: 'DELEGATED',
-        ownerId: delegateToId,
+        isDelegated: true,
+        delegatedToId: dto.delegateToId,
+        delegatedAt: new Date(),
+        delegatorRetainsAccountability: dto.retainAccountability ?? true,
+        delegationReason: dto.reason,
+        ownerId: dto.delegateToId,
       },
     });
   }
@@ -105,5 +120,45 @@ export class ActionItemsService {
   async remove(userId: string, id: string) {
     await this.findOne(userId, id);
     return this.prisma.actionItem.delete({ where: { id } });
+  }
+
+  /**
+   * Detect delegation cycles by walking the chain of delegated items.
+   * If the proposed delegatee has previously delegated items back toward
+   * the current item's owner chain, throw to prevent circular delegation.
+   */
+  private async detectDelegationCycle(itemId: string, proposedDelegateeId: string) {
+    const visited = new Set<string>();
+    visited.add(itemId);
+
+    // Walk action items delegated TO the proposed delegatee that they in turn delegated
+    let currentOwnerId: string | null = proposedDelegateeId;
+    const MAX_DEPTH = 10;
+    let depth = 0;
+
+    while (currentOwnerId && depth < MAX_DEPTH) {
+      // Find items that were delegated BY the currentOwnerId
+      const delegatedItem: { id: string; delegatedToId: string | null } | null =
+        await this.prisma.actionItem.findFirst({
+          where: {
+            isDelegated: true,
+            ownerId: currentOwnerId,
+            delegatedToId: { not: null },
+          },
+          select: { id: true, delegatedToId: true },
+        });
+
+      if (!delegatedItem) break;
+
+      if (visited.has(delegatedItem.id)) {
+        throw new BadRequestException(
+          'Delegation would create a circular chain. This item traces back to the proposed delegatee.',
+        );
+      }
+
+      visited.add(delegatedItem.id);
+      currentOwnerId = delegatedItem.delegatedToId;
+      depth++;
+    }
   }
 }

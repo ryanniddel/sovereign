@@ -25,6 +25,7 @@ export class OverdueScannerProcessor extends WorkerHost {
 
     await Promise.all([
       this.scanOverdueItems(now),
+      this.scanMissedDeadlines(now),
       this.scanUnacknowledgedMeetings(now),
       this.scanMissedPreReads(now),
       this.scanMissedCloseouts(now),
@@ -112,6 +113,101 @@ export class OverdueScannerProcessor extends WorkerHost {
     this.logger.log(
       `Overdue scan: ${overdueCommitments.length} commitments, ${overdueActions.length} action items`,
     );
+  }
+
+  // ── MISSED_DEADLINE trigger: items that just crossed their due date (within last scan interval) ──
+
+  private async scanMissedDeadlines(now: Date) {
+    const deadlineRules = await this.prisma.escalationRule.findMany({
+      where: { triggerType: 'MISSED_DEADLINE', isActive: true },
+    });
+
+    if (deadlineRules.length === 0) return;
+
+    // Look for items that crossed their deadline since the last scan (1 hour window)
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    const [missedCommitments, missedActionItems] = await Promise.all([
+      this.prisma.commitment.findMany({
+        where: {
+          status: { in: ['PENDING', 'IN_PROGRESS'] },
+          dueDate: { gte: oneHourAgo, lt: now },
+          escalationRuleId: null, // Not already assigned an OVERDUE rule
+        },
+      }),
+      this.prisma.actionItem.findMany({
+        where: {
+          status: { in: ['PENDING', 'IN_PROGRESS'] },
+          dueDate: { gte: oneHourAgo, lt: now },
+          escalationRuleId: null,
+        },
+      }),
+    ]);
+
+    let triggered = 0;
+
+    for (const commitment of missedCommitments) {
+      const rule = deadlineRules.find((r) => r.userId === commitment.userId);
+      if (!rule) continue;
+
+      // Check if already escalated for this commitment
+      const existing = await this.prisma.escalationLog.findFirst({
+        where: {
+          escalationRuleId: rule.id,
+          commitmentId: commitment.id,
+          escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+        },
+      });
+      if (existing) continue;
+
+      await this.prisma.commitment.update({
+        where: { id: commitment.id },
+        data: { status: 'OVERDUE' },
+      });
+
+      await this.escalationQueue.add('execute-escalation', {
+        userId: commitment.userId,
+        targetId: commitment.id,
+        targetType: 'COMMITMENT',
+        ruleId: rule.id,
+        stepOrder: 0,
+        retryCount: 0,
+      });
+      triggered++;
+    }
+
+    for (const actionItem of missedActionItems) {
+      const rule = deadlineRules.find((r) => r.userId === actionItem.userId);
+      if (!rule) continue;
+
+      const existing = await this.prisma.escalationLog.findFirst({
+        where: {
+          escalationRuleId: rule.id,
+          actionItemId: actionItem.id,
+          escalationStatus: { in: ['SENT', 'PENDING', 'DELIVERED'] },
+        },
+      });
+      if (existing) continue;
+
+      await this.prisma.actionItem.update({
+        where: { id: actionItem.id },
+        data: { status: 'OVERDUE' },
+      });
+
+      await this.escalationQueue.add('execute-escalation', {
+        userId: actionItem.userId,
+        targetId: actionItem.id,
+        targetType: 'ACTION_ITEM',
+        ruleId: rule.id,
+        stepOrder: 0,
+        retryCount: 0,
+      });
+      triggered++;
+    }
+
+    if (triggered > 0) {
+      this.logger.log(`Missed-deadline scan: triggered ${triggered} escalation(s)`);
+    }
   }
 
   // ── NO_ACKNOWLEDGMENT trigger: meetings past 24h without participant acknowledgment ──

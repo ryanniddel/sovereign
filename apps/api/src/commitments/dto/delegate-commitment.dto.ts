@@ -7,4 +7,8 @@ export class DelegateCommitmentDto {
   @IsOptional()
   @IsBoolean()
   retainAccountability?: boolean;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
