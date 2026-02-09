@@ -39,9 +39,9 @@ export const searchApi = {
   updateSavedSearch: (id: string, data: Partial<SavedSearchInput>) => api.patch<SavedSearch>(`/search/saved/${id}`, data),
   deleteSavedSearch: (id: string) => api.delete(`/search/saved/${id}`),
   executeSavedSearch: (id: string, page?: number, pageSize?: number) =>
-    api.get<{ results: SearchResult[]; totalResults: number; queryTimeMs: number }>(
+    api.post<{ results: SearchResult[]; totalResults: number; queryTimeMs: number }>(
       `/search/saved/${id}/execute`,
-      { ...(page ? { page } : {}), ...(pageSize ? { pageSize } : {}) } as Record<string, string | number | boolean>,
+      { ...(page ? { page } : {}), ...(pageSize ? { pageSize } : {}) },
     ),
 
   // Recent searches
