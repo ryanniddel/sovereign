@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AlertTriangle, ChevronDown, Shield, Clock } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Shield, Clock, Repeat } from 'lucide-react';
 import { useCreateEvent, useUpdateEvent, useConflictCheck } from '@/hooks/use-calendar';
 import { CalendarEventType } from '@sovereign/shared';
 import type { CalendarEvent } from '@sovereign/shared';
@@ -32,6 +32,7 @@ const schema = z.object({
   bufferBeforeMinutes: z.coerce.number().min(0).optional(),
   bufferAfterMinutes: z.coerce.number().min(0).optional(),
   travelBufferMinutes: z.coerce.number().min(0).optional(),
+  recurrenceRule: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -59,6 +60,7 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate, editEvent }
       bufferBeforeMinutes: 0,
       bufferAfterMinutes: 0,
       travelBufferMinutes: 0,
+      recurrenceRule: '',
     },
   });
 
@@ -79,8 +81,9 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate, editEvent }
         bufferBeforeMinutes: editEvent.bufferBeforeMinutes || 0,
         bufferAfterMinutes: editEvent.bufferAfterMinutes || 0,
         travelBufferMinutes: editEvent.travelBufferMinutes || 0,
+        recurrenceRule: editEvent.recurrenceRule || '',
       });
-      if (editEvent.bufferBeforeMinutes || editEvent.bufferAfterMinutes || editEvent.travelBufferMinutes || editEvent.isProtected) {
+      if (editEvent.bufferBeforeMinutes || editEvent.bufferAfterMinutes || editEvent.travelBufferMinutes || editEvent.isProtected || editEvent.recurrenceRule) {
         setAdvancedOpen(true);
       }
     }
@@ -108,6 +111,7 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate, editEvent }
       bufferBeforeMinutes: data.bufferBeforeMinutes || undefined,
       bufferAfterMinutes: data.bufferAfterMinutes || undefined,
       travelBufferMinutes: data.travelBufferMinutes || undefined,
+      recurrenceRule: data.recurrenceRule || undefined,
     };
 
     const onSuccess = () => {
@@ -263,6 +267,27 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate, editEvent }
                   </Label>
                   <Input id="travelBuffer" type="number" min={0} step={5} placeholder="0 min" {...register('travelBufferMinutes')} />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">
+                  <Repeat className="mr-1 inline h-3 w-3" />
+                  Recurrence
+                </Label>
+                <Select value={watch('recurrenceRule') || ''} onValueChange={(val) => setValue('recurrenceRule', val === 'none' ? '' : val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Does not repeat" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Does not repeat</SelectItem>
+                    <SelectItem value="FREQ=DAILY">Daily</SelectItem>
+                    <SelectItem value="FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR">Every weekday</SelectItem>
+                    <SelectItem value="FREQ=WEEKLY">Weekly</SelectItem>
+                    <SelectItem value="FREQ=WEEKLY;INTERVAL=2">Every 2 weeks</SelectItem>
+                    <SelectItem value="FREQ=MONTHLY">Monthly</SelectItem>
+                    <SelectItem value="FREQ=YEARLY">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CollapsibleContent>
           </Collapsible>
