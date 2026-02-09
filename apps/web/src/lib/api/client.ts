@@ -10,11 +10,20 @@ type RequestOptions = {
   headers?: Record<string, string>;
 };
 
+// Cache session to avoid redundant /api/auth/session calls on parallel requests
+let sessionCache: { token: string; expiresAt: number } | null = null;
+const SESSION_CACHE_MS = 30_000; // 30s
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
+  if (sessionCache && Date.now() < sessionCache.expiresAt) {
+    return { Authorization: `Bearer ${sessionCache.token}` };
+  }
   const session = await getSession();
   if (session?.accessToken) {
+    sessionCache = { token: session.accessToken, expiresAt: Date.now() + SESSION_CACHE_MS };
     return { Authorization: `Bearer ${session.accessToken}` };
   }
+  sessionCache = null;
   return {};
 }
 

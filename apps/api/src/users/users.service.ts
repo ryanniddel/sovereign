@@ -13,15 +13,21 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { auth0Id } });
   }
 
-  async findOrCreateFromAuth0(auth0Id: string, email: string) {
+  async findOrCreateFromAuth0(auth0Id: string, email?: string) {
     let user = await this.prisma.user.findUnique({ where: { auth0Id } });
     if (!user) {
+      const resolvedEmail = email || `${auth0Id}@unknown`;
       user = await this.prisma.user.create({
         data: {
           auth0Id,
-          email,
-          name: email.split('@')[0],
+          email: resolvedEmail,
+          name: resolvedEmail.split('@')[0],
         },
+      });
+    } else if (email && user.email.endsWith('@unknown')) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { email, name: email.split('@')[0] },
       });
     }
     return user;

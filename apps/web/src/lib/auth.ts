@@ -7,6 +7,12 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.AUTH0_CLIENT_ID!,
       clientSecret: process.env.AUTH0_CLIENT_SECRET!,
       issuer: process.env.AUTH0_ISSUER_BASE_URL!,
+      authorization: {
+        params: {
+          audience: process.env.AUTH0_AUDIENCE || 'https://api.sovereign.app',
+          scope: 'openid profile email',
+        },
+      },
     }),
   ],
   callbacks: {
