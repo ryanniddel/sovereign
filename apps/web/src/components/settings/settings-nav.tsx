@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { User, Clock, Brain, Bell, Activity, type LucideIcon } from 'lucide-react';
+import { User, Clock, Brain, Bell, Activity, Plug, type LucideIcon } from 'lucide-react';
 
 const settingsLinks: { label: string; href: string; icon: LucideIcon; description: string }[] = [
   { label: 'Profile', href: '/settings/profile', icon: User, description: 'Name, timezone, hourly rate' },
   { label: 'Working Hours', href: '/settings/working-hours', icon: Clock, description: 'Start and end times' },
   { label: 'Psychometrics', href: '/settings/psychometrics', icon: Brain, description: 'DISC, MBTI, Big Five' },
   { label: 'Briefing Preferences', href: '/settings/briefing-preferences', icon: Bell, description: 'Morning & nightly delivery' },
+  { label: 'Integrations', href: '/settings/integrations', icon: Plug, description: 'CRM & external services' },
   { label: 'Scheduler', href: '/settings/scheduler', icon: Activity, description: 'Job health & monitoring' },
 ];
 

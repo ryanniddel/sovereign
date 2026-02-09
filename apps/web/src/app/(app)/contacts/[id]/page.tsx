@@ -18,7 +18,9 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PageSkeleton } from '@/components/shared/loading-skeleton';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { CalendarCheck, CheckCircle2, MessageSquare, CalendarPlus } from 'lucide-react';
+import { CalendarCheck, CheckCircle2, MessageSquare, CalendarPlus, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { usePushContact } from '@/hooks/use-nimble-crm';
 import type { RelationshipBoostType } from '@sovereign/shared';
 
 const BOOST_ACTIONS: { type: RelationshipBoostType; label: string; icon: typeof CalendarCheck }[] = [
@@ -44,6 +46,7 @@ export default function ContactDetailPage() {
   const assignTier = useAssignContactTier();
   const deleteContact = useDeleteContact();
   const boost = useBoostRelationshipScore();
+  const pushToNimble = usePushContact();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingDisc, setEditingDisc] = useState(false);
@@ -153,6 +156,46 @@ export default function ContactDetailPage() {
               onEdit={() => setEditingDisc(true)}
             />
           )}
+
+          {/* Nimble CRM Sync */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">CRM Sync</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {contact.nimbleCrmId ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Badge variant="outline" className="text-xs">Nimble ID: {contact.nimbleCrmId}</Badge>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={pushToNimble.isPending}
+                    onClick={() => pushToNimble.mutate(contact.id)}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${pushToNimble.isPending ? 'animate-spin' : ''}`} />
+                    Sync
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Not linked to Nimble CRM</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={pushToNimble.isPending}
+                    onClick={() => pushToNimble.mutate(contact.id)}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${pushToNimble.isPending ? 'animate-spin' : ''}`} />
+                    Push to Nimble
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right column — Meeting Context Intelligence */}
