@@ -12,15 +12,6 @@ export function useContacts(params?: Parameters<typeof contactsApi.list>[0]) {
   });
 }
 
-export function useContactSearch(q: string) {
-  return useQuery({
-    queryKey: ['contacts', 'search', q],
-    queryFn: () => contactsApi.search(q),
-    enabled: q.length >= 2,
-    select: (res) => res.data,
-  });
-}
-
 export function useContact(id: string) {
   return useQuery({
     queryKey: ['contacts', id],
