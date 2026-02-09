@@ -108,18 +108,6 @@ export function useInitializeNotificationDefaults() {
   });
 }
 
-export function useSendNotification() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: notificationsApi.send,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['notifications'] });
-      toast.success('Notification sent');
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-}
-
 export function useCleanupNotifications() {
   const qc = useQueryClient();
   return useMutation({

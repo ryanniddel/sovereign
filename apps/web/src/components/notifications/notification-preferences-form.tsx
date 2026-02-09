@@ -18,6 +18,7 @@ const CONTEXT_LABELS: Record<string, string> = {
   ALL: 'Always',
   WORK_HOURS: 'Work hours only',
   AFTER_HOURS: 'After hours only',
+  FOCUS_MODE: 'During focus mode',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
