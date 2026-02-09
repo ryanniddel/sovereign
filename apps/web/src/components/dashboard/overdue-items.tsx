@@ -9,7 +9,6 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { PRIORITY_COLORS } from '@/lib/constants';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
-import type { Priority } from '@sovereign/shared';
 
 export function OverdueItems() {
   const { data: dashboard, isLoading: dashLoading } = useAccountabilityDashboard();
@@ -54,8 +53,7 @@ export function OverdueItems() {
               const href = isCommitment
                 ? `/accountability/commitments/${item.id}`
                 : `/accountability/action-items/${item.id}`;
-              const dueDate = new Date((item as unknown as { dueDate: Date | string }).dueDate);
-              const priority = (item as unknown as { priority?: string }).priority;
+              const dueDate = new Date(item.dueDate);
 
               return (
                 <Link
@@ -65,9 +63,9 @@ export function OverdueItems() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">{(item as unknown as { title: string }).title}</p>
-                      {priority && (
-                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${PRIORITY_COLORS[priority as Priority]?.split(' ')[0] || 'bg-gray-400'}`} />
+                      <p className="text-sm font-medium truncate">{item.title}</p>
+                      {item.priority && (
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${PRIORITY_COLORS[item.priority]?.split(' ')[0] || 'bg-gray-400'}`} />
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
