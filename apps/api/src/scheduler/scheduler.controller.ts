@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, BadRequestException, UseGuards } from '@nestjs/common';
 import { SchedulerService } from './scheduler.service';
 import { SchedulerHistoryQueryDto } from './dto/scheduler-query.dto';
+import { SchedulerGuard } from './guards/scheduler.guard';
 import { wrapResponse, wrapPaginatedResponse } from '../common';
 
 @Controller('scheduler')
+@UseGuards(SchedulerGuard)
 export class SchedulerController {
   constructor(private readonly schedulerService: SchedulerService) {}
 

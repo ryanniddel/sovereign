@@ -6,6 +6,24 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { QUEUE_NAMES } from '../queue/queue.module';
 
+// Map job names to cron intervals for nextRunAt calculation
+const CRON_INTERVALS_MS: Record<string, number> = {
+  'hourly-overdue-scan': 60 * 60 * 1000,
+  'per-user-briefing-check': 60 * 1000,
+  'calendar-sync-dispatch': 60 * 1000,
+  'meeting-prep-distribution': 15 * 60 * 1000,
+  'acknowledgment-followups': 30 * 60 * 1000,
+  'midnight-batch': 24 * 60 * 60 * 1000,
+  'relationship-score-decay': 24 * 60 * 60 * 1000,
+  'search-index-cleanup': 24 * 60 * 60 * 1000,
+  'job-history-cleanup': 24 * 60 * 60 * 1000,
+  'meeting-auto-cancel': 5 * 60 * 1000,
+  'focus-mode-triggers': 2 * 60 * 1000,
+  'focus-mode-override-expiry': 5 * 60 * 1000,
+  'notification-digest': 30 * 60 * 1000,
+  'scheduler-health-check': 10 * 60 * 1000,
+};
+
 @Injectable()
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
@@ -31,6 +49,15 @@ export class SchedulerService {
     queue: string,
     fn: () => Promise<{ itemsProcessed: number; itemsFailed?: number; metadata?: Record<string, unknown> }>,
   ) {
+    // Idempotency: skip if the same job is already RUNNING
+    const alreadyRunning = await this.prisma.scheduledJobRun.findFirst({
+      where: { jobName, status: 'RUNNING' },
+    });
+    if (alreadyRunning) {
+      this.logger.warn(`[${jobName}] skipped — previous run still in progress (started ${alreadyRunning.startedAt.toISOString()})`);
+      return;
+    }
+
     const run = await this.prisma.scheduledJobRun.create({
       data: { jobName, queue, status: 'RUNNING' },
     });
@@ -98,54 +125,56 @@ export class SchedulerService {
       });
 
       let queued = 0;
+      let failed = 0;
 
       for (const user of users) {
-        const now = this.getUserLocalTime(user.timezone);
-        const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        try {
+          const currentHHMM = this.getCurrentHHMM(user.timezone);
 
-        // Morning briefing
-        const morningTime = user.briefingPreference?.morningTime ?? user.morningBriefingTime;
-        const morningEnabled = user.briefingPreference?.morningEnabled ?? true;
+          // Morning briefing
+          const morningTime = user.briefingPreference?.morningTime ?? user.morningBriefingTime;
+          const morningEnabled = user.briefingPreference?.morningEnabled ?? true;
 
-        if (morningEnabled && currentHHMM === morningTime) {
-          // Check if already generated today
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const existing = await this.prisma.briefing.findFirst({
-            where: { userId: user.id, type: 'MORNING', date: today },
-          });
-
-          if (!existing) {
-            await this.briefingQueue.add('generate-morning-briefing', {
-              userId: user.id,
-              timezone: user.timezone,
+          if (morningEnabled && currentHHMM === morningTime) {
+            const todayStart = this.todayInTimezone(user.timezone);
+            const existing = await this.prisma.briefing.findFirst({
+              where: { userId: user.id, type: 'MORNING', date: todayStart },
             });
-            queued++;
+
+            if (!existing) {
+              await this.briefingQueue.add('generate-morning-briefing', {
+                userId: user.id,
+                timezone: user.timezone,
+              });
+              queued++;
+            }
           }
-        }
 
-        // Nightly review
-        const nightlyTime = user.briefingPreference?.nightlyTime ?? user.nightlyReviewTime;
-        const nightlyEnabled = user.briefingPreference?.nightlyEnabled ?? true;
+          // Nightly review
+          const nightlyTime = user.briefingPreference?.nightlyTime ?? user.nightlyReviewTime;
+          const nightlyEnabled = user.briefingPreference?.nightlyEnabled ?? true;
 
-        if (nightlyEnabled && currentHHMM === nightlyTime) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const existing = await this.prisma.briefing.findFirst({
-            where: { userId: user.id, type: 'NIGHTLY', date: today },
-          });
-
-          if (!existing) {
-            await this.briefingQueue.add('generate-nightly-review', {
-              userId: user.id,
-              timezone: user.timezone,
+          if (nightlyEnabled && currentHHMM === nightlyTime) {
+            const todayStart = this.todayInTimezone(user.timezone);
+            const existing = await this.prisma.briefing.findFirst({
+              where: { userId: user.id, type: 'NIGHTLY', date: todayStart },
             });
-            queued++;
+
+            if (!existing) {
+              await this.briefingQueue.add('generate-nightly-review', {
+                userId: user.id,
+                timezone: user.timezone,
+              });
+              queued++;
+            }
           }
+        } catch (error) {
+          failed++;
+          this.logger.warn(`Briefing check failed for user ${user.id}: ${error instanceof Error ? error.message : error}`);
         }
       }
 
-      return { itemsProcessed: queued, metadata: { usersChecked: users.length } };
+      return { itemsProcessed: queued, itemsFailed: failed, metadata: { usersChecked: users.length } };
     });
   }
 
@@ -174,10 +203,16 @@ export class SchedulerService {
           userId: config.userId,
         });
 
-        // Set next sync time
+        // Atomic update: only set nextSyncAt if it hasn't been changed by another process
         const nextSync = new Date(now.getTime() + config.syncIntervalMinutes * 60 * 1000);
-        await this.prisma.calendarSyncConfig.update({
-          where: { id: config.id },
+        await this.prisma.calendarSyncConfig.updateMany({
+          where: {
+            id: config.id,
+            OR: [
+              { nextSyncAt: config.nextSyncAt },
+              { nextSyncAt: null },
+            ],
+          },
           data: { nextSyncAt: nextSync },
         });
       }
@@ -337,7 +372,7 @@ export class SchedulerService {
 
       const { count } = await this.prisma.scheduledJobRun.deleteMany({
         where: {
-          status: { in: ['COMPLETED', 'FAILED'] },
+          status: { in: ['COMPLETED', 'FAILED', 'TIMED_OUT'] },
           startedAt: { lt: thirtyDaysAgo },
         },
       });
@@ -389,25 +424,41 @@ export class SchedulerService {
   @Cron('*/30 * * * *')
   async notificationDigest() {
     await this.trackJob('notification-digest', QUEUE_NAMES.NOTIFICATION, async () => {
-      const users = await this.prisma.user.findMany({
+      // Find users who have suppressed notifications (not just any focus mode user)
+      const usersWithSuppressed = await this.prisma.notification.groupBy({
+        by: ['userId'],
         where: {
-          focusModes: {
-            some: { isActive: true },
-          },
+          suppressed: true,
+          isRead: false,
+          isDismissed: false,
         },
+        _count: true,
       });
 
-      for (const user of users) {
+      for (const entry of usersWithSuppressed) {
         await this.notificationQueue.add('send-notification', {
-          userId: user.id,
+          userId: entry.userId,
           channel: 'IN_APP',
           priority: 'LOW',
+          category: 'SYSTEM',
           title: 'Suppressed Notifications Digest',
-          message: 'You have notifications that were suppressed during focus mode.',
+          message: `You have ${entry._count} notification(s) that were suppressed during focus mode.`,
         });
       }
 
-      return { itemsProcessed: users.length };
+      return { itemsProcessed: usersWithSuppressed.length };
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // EVERY 10 MINUTES: SCHEDULER HEALTH CHECK (stuck job detection)
+  // ════════════════════════════════════════════════════════════════
+
+  @Cron('*/10 * * * *')
+  async schedulerHealthCheck() {
+    await this.trackJob('scheduler-health-check', QUEUE_NAMES.AI_PROCESSING, async () => {
+      await this.aiProcessingQueue.add('scheduler-health-check', {});
+      return { itemsProcessed: 1 };
     });
   }
 
@@ -419,25 +470,31 @@ export class SchedulerService {
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const [recentRuns, failedRuns] = await Promise.all([
+    const [recentRuns, failedRuns, stuckJobs] = await Promise.all([
       this.prisma.scheduledJobRun.findMany({
         where: { startedAt: { gte: last24h } },
       }),
       this.prisma.scheduledJobRun.findMany({
-        where: { startedAt: { gte: last24h }, status: 'FAILED' },
+        where: { startedAt: { gte: last24h }, status: { in: ['FAILED', 'TIMED_OUT'] } },
         orderBy: { startedAt: 'desc' },
         take: 10,
+      }),
+      this.prisma.scheduledJobRun.count({
+        where: { status: 'RUNNING', startedAt: { lt: new Date(now.getTime() - 10 * 60 * 1000) } },
       }),
     ]);
 
     const successCount = recentRuns.filter((r) => r.status === 'COMPLETED').length;
+    const timedOutCount = recentRuns.filter((r) => r.status === 'TIMED_OUT').length;
     const totalDuration = recentRuns
       .filter((r) => r.durationMs !== null)
       .reduce((sum, r) => sum + (r.durationMs ?? 0), 0);
     const runsWithDuration = recentRuns.filter((r) => r.durationMs !== null).length;
 
     const successRate = recentRuns.length > 0 ? successCount / recentRuns.length : 1;
-    const status = successRate >= 0.95 ? 'healthy' : successRate >= 0.8 ? 'degraded' : 'unhealthy';
+    const status = stuckJobs > 0
+      ? 'unhealthy'
+      : successRate >= 0.95 ? 'healthy' : successRate >= 0.8 ? 'degraded' : 'unhealthy';
 
     // Build job definitions with last run info
     const jobDefs = await this.getJobDefinitions();
@@ -451,6 +508,8 @@ export class SchedulerService {
         totalRunsLast24h: recentRuns.length,
         successRate: Math.round(successRate * 100) / 100,
         failedLast24h: failedRuns.length,
+        timedOutLast24h: timedOutCount,
+        stuckJobs,
         averageDurationMs: runsWithDuration > 0 ? Math.round(totalDuration / runsWithDuration) : 0,
       },
     };
@@ -471,6 +530,7 @@ export class SchedulerService {
       { name: 'focus-mode-triggers', queue: 'focus-modes', schedule: 'Every 2 minutes', description: 'Checks scheduled and calendar triggers for focus mode activation' },
       { name: 'focus-mode-override-expiry', queue: 'focus-modes', schedule: 'Every 5 minutes', description: 'Expires stale focus mode override requests' },
       { name: 'notification-digest', queue: 'notification', schedule: 'Every 30 minutes', description: 'Sends digest of suppressed notifications during focus mode' },
+      { name: 'scheduler-health-check', queue: 'ai-processing', schedule: 'Every 10 minutes', description: 'Detects and resolves stuck jobs' },
     ];
 
     // Get last run for each job
@@ -483,12 +543,21 @@ export class SchedulerService {
       ),
     );
 
-    return jobNames.map((job, i) => ({
-      ...job,
-      isEnabled: true,
-      lastRunAt: lastRuns[i]?.startedAt ?? undefined,
-      lastRunStatus: lastRuns[i]?.status ?? undefined,
-    }));
+    return jobNames.map((job, i) => {
+      const lastRun = lastRuns[i];
+      const intervalMs = CRON_INTERVALS_MS[job.name];
+      const nextRunAt = lastRun?.startedAt && intervalMs
+        ? new Date(lastRun.startedAt.getTime() + intervalMs)
+        : undefined;
+
+      return {
+        ...job,
+        isEnabled: true,
+        lastRunAt: lastRun?.startedAt ?? undefined,
+        lastRunStatus: lastRun?.status ?? undefined,
+        nextRunAt,
+      };
+    });
   }
 
   async getJobHistory(params: {
@@ -521,6 +590,7 @@ export class SchedulerService {
 
     const completed = runs.filter((r) => r.status === 'COMPLETED');
     const failed = runs.filter((r) => r.status === 'FAILED');
+    const timedOut = runs.filter((r) => r.status === 'TIMED_OUT');
     const avgDuration = completed.length > 0
       ? completed.reduce((sum, r) => sum + (r.durationMs ?? 0), 0) / completed.length
       : 0;
@@ -534,6 +604,7 @@ export class SchedulerService {
       stats: {
         successCount: completed.length,
         failureCount: failed.length,
+        timedOutCount: timedOut.length,
         averageDurationMs: Math.round(avgDuration),
         averageItemsProcessed: Math.round(avgItems),
       },
@@ -550,10 +621,12 @@ export class SchedulerService {
       'midnight-batch': () => this.midnightJobs(),
       'relationship-score-decay': () => this.relationshipScoreDecay(),
       'search-index-cleanup': () => this.searchIndexCleanup(),
+      'job-history-cleanup': () => this.jobHistoryCleanup(),
       'meeting-auto-cancel': () => this.autoCancelCheck(),
       'focus-mode-triggers': () => this.focusModeTriggerCheck(),
       'focus-mode-override-expiry': () => this.focusModeOverrideExpiry(),
       'notification-digest': () => this.notificationDigest(),
+      'scheduler-health-check': () => this.schedulerHealthCheck(),
     };
 
     const handler = jobMap[jobName];
@@ -569,13 +642,33 @@ export class SchedulerService {
   // HELPERS
   // ════════════════════════════════════════════════════════════════
 
-  private getUserLocalTime(timezone: string): Date {
+  /**
+   * Get the current HH:MM in the user's timezone using Intl.DateTimeFormat.
+   * This properly handles DST transitions.
+   */
+  private getCurrentHHMM(timezone: string): string {
     const now = new Date();
-    const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' });
-    const localStr = now.toLocaleString('en-US', { timeZone: timezone });
-    const utcDate = new Date(utcStr);
-    const localDate = new Date(localStr);
-    const offset = localDate.getTime() - utcDate.getTime();
-    return new Date(now.getTime() + offset);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(now);
+    const hour = parts.find((p) => p.type === 'hour')?.value ?? '00';
+    const minute = parts.find((p) => p.type === 'minute')?.value ?? '00';
+
+    // Intl may return "24" for midnight in some locales — normalize
+    return `${hour === '24' ? '00' : hour}:${minute}`;
+  }
+
+  /**
+   * Get the start of today in the user's timezone (for dedup checks).
+   */
+  private todayInTimezone(timezone: string): Date {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-CA', { timeZone: timezone }); // "YYYY-MM-DD"
+    return new Date(`${dateStr}T00:00:00`);
   }
 }
