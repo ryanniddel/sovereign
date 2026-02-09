@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useMeeting, useAddParticipant, useRemoveParticipant } from '@/hooks/use-meetings';
+import { useMeeting, useAddParticipant, useRemoveParticipant, useAcknowledgeParticipant } from '@/hooks/use-meetings';
 import { LifecycleTracker } from '@/components/meetings/lifecycle-tracker';
 import { MeetingActions } from '@/components/meetings/meeting-actions';
 import { ParticipantList } from '@/components/meetings/participant-list';
@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import { MeetingStatus } from '@sovereign/shared';
 import { MEETING_TYPE_LABELS } from '@/lib/constants';
 import type { MeetingType, MeetingParticipant, ParticipantRole } from '@sovereign/shared';
-import { Clock, DollarSign, FileText, Star, ExternalLink } from 'lucide-react';
+import { Clock, DollarSign, FileText, Star, ExternalLink, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -27,6 +27,7 @@ export default function MeetingDetailPage() {
   const [addParticipantOpen, setAddParticipantOpen] = useState(false);
   const addParticipant = useAddParticipant();
   const removeParticipant = useRemoveParticipant();
+  const acknowledgeParticipant = useAcknowledgeParticipant();
 
   if (isLoading) return <PageSkeleton />;
   if (!meeting) return <p>Meeting not found</p>;
@@ -67,6 +68,25 @@ export default function MeetingDetailPage() {
         status={meeting.status as MeetingStatus}
         hasAgenda={!!meeting.agendaUrl}
         hasPreRead={!!meeting.preReadUrl}
+      />
+
+      {meeting.rejectionReason && (
+        <Card className="border-l-4 border-l-destructive">
+          <CardContent className="flex items-start gap-3 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div>
+              <p className="text-sm font-medium">Rejection Reason</p>
+              <p className="text-sm text-muted-foreground">{meeting.rejectionReason}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <CostDisplay
+        hourlyRate={meeting.hourlyRate}
+        durationMinutes={meeting.actualDurationMinutes || meeting.estimatedDurationMinutes}
+        meetingCost={meeting.meetingCost}
+        participantCount={participants.length}
       />
 
       <Separator />
@@ -200,6 +220,7 @@ export default function MeetingDetailPage() {
             participants={participants}
             canManage={!isTerminal}
             onRemove={(pid) => removeParticipant.mutate({ meetingId: id, participantId: pid })}
+            onAcknowledge={meeting.preReadUrl ? (pid) => acknowledgeParticipant.mutate({ meetingId: id, participantId: pid }) : undefined}
           />
         </CardContent>
       </Card>

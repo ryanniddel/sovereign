@@ -22,9 +22,12 @@ interface LifecycleTrackerProps {
 
 export function LifecycleTracker({ currentStatus, cancelled }: LifecycleTrackerProps) {
   if (cancelled) {
+    const isAuto = currentStatus === MeetingStatus.AUTO_CANCELLED;
     return (
-      <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3">
-        <span className="text-sm font-medium text-destructive">Meeting Cancelled</span>
+      <div className={cn('flex items-center gap-2 rounded-md p-3', isAuto ? 'bg-orange-500/10' : 'bg-destructive/10')}>
+        <span className={cn('text-sm font-medium', isAuto ? 'text-orange-500' : 'text-destructive')}>
+          {isAuto ? 'Auto-Cancelled (policy violation)' : 'Meeting Cancelled'}
+        </span>
       </div>
     );
   }

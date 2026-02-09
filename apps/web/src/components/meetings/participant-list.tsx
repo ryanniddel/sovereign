@@ -34,6 +34,11 @@ export function ParticipantList({ participants, onRemove, onAcknowledge, canMana
             <Badge variant="outline" className="text-xs">{p.role}</Badge>
             {p.hasAcknowledged ? (
               <CheckCircle className="h-4 w-4 text-emerald-500" />
+            ) : onAcknowledge ? (
+              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => onAcknowledge(p.id)}>
+                <CheckCircle className="h-3 w-3" />
+                Acknowledge
+              </Button>
             ) : (
               <XCircle className="h-4 w-4 text-muted-foreground" />
             )}
