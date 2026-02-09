@@ -18,33 +18,28 @@ export class DailyCloseoutService {
   async initiate(userId: string, timezone: string) {
     const today = todayInTimezone(timezone);
 
-    const existing = await this.prisma.dailyCloseout.findUnique({
-      where: { userId_date: { userId, date: today } },
-    });
-    if (existing) return existing;
-
     // Mark overdue items before starting
     await this.accountabilityService.detectAndMarkOverdue(userId);
 
-    const [openCommitments, openActionItems, activeAgreements] = await Promise.all([
+    const [openCommitments, openActionItems] = await Promise.all([
       this.prisma.commitment.count({
         where: { userId, status: { in: ['PENDING', 'IN_PROGRESS', 'OVERDUE'] } },
       }),
       this.prisma.actionItem.count({
         where: { userId, status: { in: ['PENDING', 'IN_PROGRESS', 'OVERDUE'] } },
       }),
-      this.prisma.agreement.count({
-        where: { userId, isActive: true },
-      }),
     ]);
 
-    return this.prisma.dailyCloseout.create({
-      data: {
+    // Use upsert to prevent race condition on duplicate initiation
+    return this.prisma.dailyCloseout.upsert({
+      where: { userId_date: { userId, date: today } },
+      create: {
         userId,
         date: today,
         openItemsAtStart: openCommitments + openActionItems,
         activeAgreementsReviewed: 0,
       },
+      update: {},
     });
   }
 
@@ -84,6 +79,14 @@ export class DailyCloseoutService {
 
     for (const resolution of dto.resolutions) {
       const model = resolution.itemType === 'commitment' ? 'commitment' : 'actionItem';
+
+      // Validate item exists and belongs to user
+      const item = await (this.prisma[model] as any).findFirst({
+        where: { id: resolution.itemId, userId },
+      });
+      if (!item) {
+        throw new BadRequestException(`Item ${resolution.itemId} not found or does not belong to you`);
+      }
 
       if (resolution.resolution === 'completed') {
         await (this.prisma[model] as any).update({
@@ -128,6 +131,17 @@ export class DailyCloseoutService {
 
   async reviewAgreements(userId: string, timezone: string, agreementCount: number) {
     const closeout = await this.getToday(userId, timezone);
+
+    // Validate count against actual active agreements
+    const actualCount = await this.prisma.agreement.count({
+      where: { userId, isActive: true },
+    });
+    if (agreementCount > actualCount) {
+      throw new BadRequestException(
+        `Cannot review ${agreementCount} agreements — only ${actualCount} active agreements exist`,
+      );
+    }
+
     return this.prisma.dailyCloseout.update({
       where: { id: closeout.id },
       data: { activeAgreementsReviewed: agreementCount },

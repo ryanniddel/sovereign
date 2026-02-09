@@ -604,7 +604,7 @@ export class BriefingsService {
         name: p.contact.name,
         company: p.contact.company || undefined,
         discProfile: hasDisc
-          ? { D: p.contact.discD, I: p.contact.discI, S: p.contact.discS, C: p.contact.discC }
+          ? { D: p.contact.discD ?? 0, I: p.contact.discI ?? 0, S: p.contact.discS ?? 0, C: p.contact.discC ?? 0 }
           : undefined,
         relationshipScore: p.contact.relationshipScore,
         meetingTitle: event?.title || '',
