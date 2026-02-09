@@ -45,6 +45,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Phone (for Twilio SMS/voice)
+  phoneNumber   String?  @map("phone_number")
+  phoneVerified Boolean  @default(false) @map("phone_verified")
+
   // Relations
   contacts               Contact[]
   contactTiers            ContactTier[]
@@ -70,6 +74,7 @@ model User {
   calendarProtectionRules CalendarProtectionRule[]
   calendarSyncConfigs    CalendarSyncConfig[]
   scheduledJobRuns       ScheduledJobRun[]
+  oauthConnections       OAuthConnection[]
 
   @@map("users")
 }
@@ -267,6 +272,9 @@ model CalendarSyncConfig {
   direction SyncDirection @default(BOTH)
   status    SyncStatus    @default(ACTIVE)
 
+  // Link to OAuth connection for token retrieval
+  oauthConnectionId String? @map("oauth_connection_id")
+
   // Connection credentials (encrypted reference — actual tokens in vault)
   externalAccountId    String? @map("external_account_id")
   externalCalendarId   String? @map("external_calendar_id")
@@ -286,8 +294,9 @@ model CalendarSyncConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncLogs CalendarSyncLog[]
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oauthConnection  OAuthConnection?   @relation(fields: [oauthConnectionId], references: [id], onDelete: SetNull)
+  syncLogs         CalendarSyncLog[]
 
   @@unique([userId, source, externalCalendarId])
   @@index([status, nextSyncAt])
@@ -412,6 +421,12 @@ model Meeting {
   rating          Int?     // 1-5
   valueScore      Int?     @map("value_score") // 1-5
   wasNecessary    Boolean? @map("was_necessary")
+
+  // Meeting link (Zoom / Teams)
+  meetingLink         String? @map("meeting_link")
+  meetingLinkProvider String? @map("meeting_link_provider") // ZOOM | TEAMS
+  externalMeetingId   String? @map("external_meeting_id")
+  recordingUrl        String? @map("recording_url")
 
   // Recurring governance
   isRecurring      Boolean   @default(false) @map("is_recurring")
@@ -1232,4 +1247,58 @@ model ScheduledJobRun {
   @@index([status])
   @@index([userId])
   @@map("scheduled_job_runs")
+}
+
+// ════════════════════════════════════════════════════════════════
+// OAUTH CONNECTIONS (Integrations)
+// ════════════════════════════════════════════════════════════════
+
+enum IntegrationProvider {
+  MICROSOFT
+  GOOGLE
+  ZOOM
+  SLACK
+}
+
+enum OAuthConnectionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+model OAuthConnection {
+  id       String              @id @default(cuid())
+  userId   String              @map("user_id")
+  provider IntegrationProvider
+
+  // Encrypted tokens (AES-256-GCM)
+  accessToken       String  @map("access_token")
+  refreshToken      String? @map("refresh_token")
+  tokenExpiresAt    DateTime? @map("token_expires_at")
+  scope             String?
+
+  // External account info
+  externalAccountId    String? @map("external_account_id")
+  externalAccountEmail String? @map("external_account_email")
+  externalAccountName  String? @map("external_account_name")
+
+  // Status
+  status    OAuthConnectionStatus @default(ACTIVE)
+  lastUsedAt DateTime?            @map("last_used_at")
+  lastError  String?              @map("last_error")
+
+  // Metadata (provider-specific config)
+  metadata Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarSyncConfigs CalendarSyncConfig[]
+
+  @@unique([userId, provider])
+  @@index([provider, status])
+  @@map("oauth_connections")
 }

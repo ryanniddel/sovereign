@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { RequestMeetingDto } from './dto/request-meeting.dto';
 import { QualifyMeetingDto } from './dto/qualify-meeting.dto';
@@ -18,12 +18,20 @@ import { calculateMeetingCost } from '../common';
 import { MeetingStatus } from '@sovereign/shared';
 import { Prisma } from '@prisma/client';
 import { ContactsService } from '../contacts/contacts.service';
+import { ZoomClient } from '../integrations/providers/zoom.client';
+import { MicrosoftGraphClient } from '../integrations/providers/microsoft-graph.client';
+import { IntegrationsService } from '../integrations/integrations.service';
 
 @Injectable()
 export class MeetingsService {
+  private readonly logger = new Logger(MeetingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly contactsService: ContactsService,
+    private readonly zoomClient: ZoomClient,
+    private readonly graphClient: MicrosoftGraphClient,
+    private readonly integrationsService: IntegrationsService,
   ) {}
 
   // ════════════════════════════════════════════════════════════════
@@ -175,6 +183,43 @@ export class MeetingsService {
 
     const startTime = new Date(dto.startTime);
     const endTime = new Date(dto.endTime);
+    const durationMinutes = Math.round(
+      (endTime.getTime() - startTime.getTime()) / 60000,
+    );
+
+    // Auto-create video meeting link: prefer Zoom, then fall back to Teams
+    let meetingLink: string | undefined;
+    let meetingLinkProvider: string | undefined;
+    let externalMeetingId: string | undefined;
+
+    const zoomResult = await this.zoomClient.createMeeting(
+      userId,
+      meeting.title,
+      startTime,
+      durationMinutes,
+    );
+    if (zoomResult) {
+      meetingLink = zoomResult.joinUrl;
+      meetingLinkProvider = 'ZOOM';
+      externalMeetingId = zoomResult.meetingId;
+      this.logger.log(`Zoom meeting link created for meeting ${id}`);
+    }
+
+    // If no Zoom link, fall back to Teams if Microsoft is connected
+    if (!meetingLink) {
+      const teamsResult = await this.graphClient.createOnlineMeeting(
+        userId,
+        meeting.title,
+        startTime,
+        endTime,
+      );
+      if (teamsResult) {
+        meetingLink = teamsResult.joinUrl;
+        meetingLinkProvider = 'TEAMS';
+        externalMeetingId = teamsResult.meetingId;
+        this.logger.log(`Teams meeting link created for meeting ${id}`);
+      }
+    }
 
     // Auto-create calendar event
     const calendarEvent = await this.prisma.calendarEvent.create({
@@ -230,6 +275,11 @@ export class MeetingsService {
         scheduledStartTime: startTime,
         scheduledEndTime: endTime,
         scheduledLocation: dto.location,
+        ...(meetingLink && {
+          meetingLink,
+          meetingLinkProvider,
+          externalMeetingId,
+        }),
       },
       include: { participants: true, calendarEvent: true },
     });

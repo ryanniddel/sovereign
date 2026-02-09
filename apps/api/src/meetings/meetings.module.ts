@@ -8,9 +8,10 @@ import { AcknowledgmentFollowupProcessor } from './processors/acknowledgment-fol
 import { UsersModule } from '../users/users.module';
 import { QueueModule } from '../queue/queue.module';
 import { ContactsModule } from '../contacts/contacts.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Module({
-  imports: [UsersModule, QueueModule, ContactsModule],
+  imports: [UsersModule, QueueModule, ContactsModule, IntegrationsModule],
   controllers: [MeetingsController],
   providers: [
     MeetingsService,

@@ -29,6 +29,9 @@ import {
   SyncResolution,
   ConflictSeverity,
   ScheduledJobStatus,
+  IntegrationProvider,
+  OAuthConnectionStatus,
+  MeetingLinkProvider,
 } from '../enums';
 
 // ── DISC Profile ──
@@ -69,6 +72,8 @@ export interface User {
   workingHoursStart: string; // "09:00"
   workingHoursEnd: string;   // "17:00"
   defaultHourlyRate: number;
+  phoneNumber?: string;
+  phoneVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -297,6 +302,10 @@ export interface Meeting {
   rating?: number;
   valueScore?: number;
   wasNecessary?: boolean;
+  meetingLink?: string;
+  meetingLinkProvider?: MeetingLinkProvider;
+  externalMeetingId?: string;
+  recordingUrl?: string;
   isRecurring: boolean;
   recurringGroupId?: string;
   nextReviewDate?: Date;
@@ -1014,4 +1023,41 @@ export interface NimbleSyncResult {
   contactsUpdated: number;
   contactsFailed: number;
   errors: string[];
+}
+
+// ── OAuth Connections / Integrations ──
+
+export interface OAuthConnection {
+  id: string;
+  userId: string;
+  provider: IntegrationProvider;
+  scope?: string;
+  externalAccountId?: string;
+  externalAccountEmail?: string;
+  externalAccountName?: string;
+  status: OAuthConnectionStatus;
+  lastUsedAt?: Date;
+  lastError?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IntegrationStatus {
+  provider: IntegrationProvider | 'TWILIO' | 'NIMBLE';
+  connected: boolean;
+  accountEmail?: string;
+  accountName?: string;
+  status: OAuthConnectionStatus | 'DISCONNECTED';
+  lastUsedAt?: Date;
+  lastError?: string;
+}
+
+export interface IntegrationsOverview {
+  integrations: IntegrationStatus[];
+  phone: {
+    connected: boolean;
+    phoneNumber?: string;
+    verified: boolean;
+  };
 }

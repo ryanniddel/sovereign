@@ -4,9 +4,10 @@ import { NotificationsService } from './notifications.service';
 import { NotificationProcessor } from './processors/notification.processor';
 import { UsersModule } from '../users/users.module';
 import { QueueModule } from '../queue/queue.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Module({
-  imports: [UsersModule, QueueModule],
+  imports: [UsersModule, QueueModule, IntegrationsModule],
   controllers: [NotificationsController],
   providers: [NotificationsService, NotificationProcessor],
   exports: [NotificationsService],

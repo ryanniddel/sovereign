@@ -3,6 +3,10 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { NotificationsService } from '../notifications.service';
 import { PrismaService } from '../../database/prisma.service';
+import { SlackClient } from '../../integrations/providers/slack.client';
+import { TwilioClient } from '../../integrations/providers/twilio.client';
+import { GoogleApisClient } from '../../integrations/providers/google-apis.client';
+import { IntegrationsService } from '../../integrations/integrations.service';
 
 // Map common notification titles to categories
 const CATEGORY_MAP: Record<string, string> = {
@@ -17,6 +21,23 @@ const CATEGORY_MAP: Record<string, string> = {
   'morning briefing': 'BRIEFING',
   'nightly review': 'BRIEFING',
 };
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 function inferCategory(title: string, message: string): string {
   const combined = `${title} ${message}`.toLowerCase();
@@ -33,6 +54,10 @@ export class NotificationProcessor extends WorkerHost {
   constructor(
     private readonly notificationsService: NotificationsService,
     private readonly prisma: PrismaService,
+    private readonly slackClient: SlackClient,
+    private readonly twilioClient: TwilioClient,
+    private readonly googleApisClient: GoogleApisClient,
+    private readonly integrationsService: IntegrationsService,
   ) {
     super();
   }
@@ -97,7 +122,7 @@ export class NotificationProcessor extends WorkerHost {
     }
   }
 
-  // ── Channel Dispatch Stubs ──
+  // ── Channel Dispatch ──
 
   private async dispatchToChannel(
     channel: string,
@@ -126,27 +151,112 @@ export class NotificationProcessor extends WorkerHost {
     }
   }
 
-  private async dispatchEmail(notification: { title: string; message: string }): Promise<boolean> {
-    // TODO: Integrate email provider (SendGrid, SES, etc.)
-    this.logger.log(`[EMAIL STUB] Would send email: "${notification.title}"`);
-    return true;
+  private async dispatchEmail(
+    notification: { userId: string; title: string; message: string },
+  ): Promise<boolean> {
+    // Check if user has Google connected for Gmail sending
+    const tokens = await this.integrationsService.getDecryptedTokens(
+      notification.userId,
+      'GOOGLE',
+    );
+
+    if (!tokens) {
+      this.logger.warn(
+        `Email dispatch skipped for user ${notification.userId}: no active Google connection for Gmail`,
+      );
+      return false;
+    }
+
+    // Look up the user's email address
+    const user = await this.prisma.user.findUnique({
+      where: { id: notification.userId },
+      select: { email: true },
+    });
+
+    if (!user?.email) {
+      this.logger.warn(
+        `Email dispatch skipped for user ${notification.userId}: no email address on file`,
+      );
+      return false;
+    }
+
+    const htmlBody = `<h2>${escapeHtml(notification.title)}</h2><p>${escapeHtml(notification.message)}</p>`;
+    return this.googleApisClient.sendEmail(
+      notification.userId,
+      user.email,
+      notification.title,
+      htmlBody,
+    );
   }
 
-  private async dispatchSms(notification: { title: string; message: string }): Promise<boolean> {
-    // TODO: Integrate SMS provider (Twilio, etc.)
-    this.logger.log(`[SMS STUB] Would send SMS: "${notification.title}"`);
-    return true;
+  private async dispatchSms(
+    notification: { userId: string; title: string; message: string },
+  ): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: notification.userId },
+      select: { phoneNumber: true, phoneVerified: true },
+    });
+
+    if (!user?.phoneNumber || !user.phoneVerified) {
+      this.logger.warn(
+        `SMS dispatch skipped for user ${notification.userId}: no verified phone number`,
+      );
+      return false;
+    }
+
+    const body = `${notification.title}\n${notification.message}`;
+    const result = await this.twilioClient.sendSms(user.phoneNumber, body);
+    return result !== null;
   }
 
-  private async dispatchSlack(notification: { title: string; message: string }): Promise<boolean> {
-    // TODO: Integrate Slack API
-    this.logger.log(`[SLACK STUB] Would send Slack message: "${notification.title}"`);
-    return true;
+  private async dispatchSlack(
+    notification: { userId: string; title: string; message: string },
+  ): Promise<boolean> {
+    const text = `*${notification.title}*\n${notification.message}`;
+    // Attempt to send via the user's connected Slack.
+    // Use sendMessage to a default notification channel, or sendDM to self.
+    // We use sendDM to the user's own Slack identity for personal notifications.
+    const conn = await this.prisma.oAuthConnection.findUnique({
+      where: {
+        userId_provider: {
+          userId: notification.userId,
+          provider: 'SLACK',
+        },
+      },
+      select: { externalAccountId: true, status: true },
+    });
+
+    if (!conn || conn.status !== 'ACTIVE' || !conn.externalAccountId) {
+      this.logger.warn(
+        `Slack dispatch skipped for user ${notification.userId}: no active Slack connection`,
+      );
+      return false;
+    }
+
+    return this.slackClient.sendDM(
+      notification.userId,
+      conn.externalAccountId,
+      text,
+    );
   }
 
-  private async dispatchPhoneCall(notification: { title: string; message: string }): Promise<boolean> {
-    // TODO: Integrate voice provider (Twilio, etc.)
-    this.logger.log(`[PHONE STUB] Would initiate call: "${notification.title}"`);
-    return true;
+  private async dispatchPhoneCall(
+    notification: { userId: string; title: string; message: string },
+  ): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: notification.userId },
+      select: { phoneNumber: true, phoneVerified: true },
+    });
+
+    if (!user?.phoneNumber || !user.phoneVerified) {
+      this.logger.warn(
+        `Phone call dispatch skipped for user ${notification.userId}: no verified phone number`,
+      );
+      return false;
+    }
+
+    const twiml = `<Response><Say>${escapeXml(notification.title)}. ${escapeXml(notification.message)}</Say></Response>`;
+    const result = await this.twilioClient.makeCall(user.phoneNumber, twiml);
+    return result !== null;
   }
 }

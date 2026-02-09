@@ -241,6 +241,27 @@ export enum ScheduledJobStatus {
   TIMED_OUT = 'TIMED_OUT',
 }
 
+// ── Integrations ──
+
+export enum IntegrationProvider {
+  MICROSOFT = 'MICROSOFT',
+  GOOGLE = 'GOOGLE',
+  ZOOM = 'ZOOM',
+  SLACK = 'SLACK',
+}
+
+export enum OAuthConnectionStatus {
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+  ERROR = 'ERROR',
+}
+
+export enum MeetingLinkProvider {
+  ZOOM = 'ZOOM',
+  TEAMS = 'TEAMS',
+}
+
 // ── Conflict Detection ──
 
 export enum ConflictSeverity {

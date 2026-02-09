@@ -24,6 +24,7 @@ import { AiEaModule } from './ai-ea/ai-ea.module';
 import { SearchModule } from './search/search.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { NimbleCrmModule } from './nimble-crm/nimble-crm.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -55,6 +56,7 @@ import { AppService } from './app.service';
     SearchModule,
     SchedulerModule,
     NimbleCrmModule,
+    IntegrationsModule,
   ],
   controllers: [AppController],
   providers: [
