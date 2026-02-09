@@ -70,7 +70,7 @@ export function CloseoutWizard() {
         title: c.title,
         type: 'commitment',
         priority: c.priority as string,
-        dueDate: c.dueDate as unknown as string,
+        dueDate: String(c.dueDate),
         status: c.status as string,
       });
     }
@@ -80,7 +80,7 @@ export function CloseoutWizard() {
         title: a.title,
         type: 'actionItem',
         priority: a.priority as string,
-        dueDate: a.dueDate as unknown as string,
+        dueDate: String(a.dueDate),
         status: a.status as string,
       });
     }
