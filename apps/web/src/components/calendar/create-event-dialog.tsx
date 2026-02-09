@@ -13,10 +13,12 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertTriangle, ChevronDown, Shield, Clock } from 'lucide-react';
-import { useCreateEvent, useConflictCheck } from '@/hooks/use-calendar';
+import { useCreateEvent, useUpdateEvent, useConflictCheck } from '@/hooks/use-calendar';
 import { CalendarEventType } from '@sovereign/shared';
+import type { CalendarEvent } from '@sovereign/shared';
 import { CALENDAR_EVENT_TYPE_LABELS } from '@/lib/constants';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 
 const schema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -38,10 +40,13 @@ interface CreateEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDate?: string;
+  editEvent?: CalendarEvent | null;
 }
 
-export function CreateEventDialog({ open, onOpenChange, defaultDate }: CreateEventDialogProps) {
+export function CreateEventDialog({ open, onOpenChange, defaultDate, editEvent }: CreateEventDialogProps) {
   const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent();
+  const isEditing = !!editEvent;
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FormValues>({
@@ -57,6 +62,30 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate }: CreateEve
     },
   });
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editEvent && open) {
+      const toLocal = (d: Date | string) => format(new Date(d), "yyyy-MM-dd'T'HH:mm");
+      const toDate = (d: Date | string) => format(new Date(d), 'yyyy-MM-dd');
+      reset({
+        title: editEvent.title,
+        description: editEvent.description || '',
+        startTime: editEvent.isAllDay ? toDate(editEvent.startTime) : toLocal(editEvent.startTime),
+        endTime: editEvent.isAllDay ? toDate(editEvent.endTime) : toLocal(editEvent.endTime),
+        location: editEvent.location || '',
+        eventType: editEvent.eventType || '',
+        isAllDay: editEvent.isAllDay,
+        isProtected: editEvent.isProtected,
+        bufferBeforeMinutes: editEvent.bufferBeforeMinutes || 0,
+        bufferAfterMinutes: editEvent.bufferAfterMinutes || 0,
+        travelBufferMinutes: editEvent.travelBufferMinutes || 0,
+      });
+      if (editEvent.bufferBeforeMinutes || editEvent.bufferAfterMinutes || editEvent.travelBufferMinutes || editEvent.isProtected) {
+        setAdvancedOpen(true);
+      }
+    }
+  }, [editEvent, open, reset]);
+
   const startTime = watch('startTime');
   const endTime = watch('endTime');
   const isAllDay = watch('isAllDay');
@@ -64,38 +93,41 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate }: CreateEve
   const startISO = startTime ? new Date(startTime).toISOString() : '';
   const endISO = endTime ? new Date(endTime).toISOString() : '';
 
-  const { data: conflictData } = useConflictCheck(startISO, endISO);
+  const { data: conflictData } = useConflictCheck(startISO, endISO, editEvent?.id);
 
   const onSubmit = (data: FormValues) => {
-    createEvent.mutate(
-      {
-        title: data.title,
-        description: data.description,
-        startTime: new Date(data.startTime).toISOString(),
-        endTime: new Date(data.endTime).toISOString(),
-        location: data.location,
-        eventType: data.eventType as CalendarEventType | undefined,
-        isAllDay: data.isAllDay,
-        isProtected: data.isProtected,
-        bufferBeforeMinutes: data.bufferBeforeMinutes || undefined,
-        bufferAfterMinutes: data.bufferAfterMinutes || undefined,
-        travelBufferMinutes: data.travelBufferMinutes || undefined,
-      },
-      {
-        onSuccess: () => {
-          reset();
-          setAdvancedOpen(false);
-          onOpenChange(false);
-        },
-      },
-    );
+    const payload = {
+      title: data.title,
+      description: data.description,
+      startTime: new Date(data.startTime).toISOString(),
+      endTime: new Date(data.endTime).toISOString(),
+      location: data.location,
+      eventType: data.eventType as CalendarEventType | undefined,
+      isAllDay: data.isAllDay,
+      isProtected: data.isProtected,
+      bufferBeforeMinutes: data.bufferBeforeMinutes || undefined,
+      bufferAfterMinutes: data.bufferAfterMinutes || undefined,
+      travelBufferMinutes: data.travelBufferMinutes || undefined,
+    };
+
+    const onSuccess = () => {
+      reset();
+      setAdvancedOpen(false);
+      onOpenChange(false);
+    };
+
+    if (isEditing) {
+      updateEvent.mutate({ id: editEvent!.id, ...payload }, { onSuccess });
+    } else {
+      createEvent.mutate(payload, { onSuccess });
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Event</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Event' : 'Create Event'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -175,7 +207,7 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate }: CreateEve
 
           <div className="space-y-2">
             <Label>Event Type</Label>
-            <Select onValueChange={(val) => setValue('eventType', val)}>
+            <Select value={watch('eventType') || ''} onValueChange={(val) => setValue('eventType', val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -239,8 +271,10 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate }: CreateEve
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createEvent.isPending}>
-              {createEvent.isPending ? 'Creating...' : 'Create'}
+            <Button type="submit" disabled={createEvent.isPending || updateEvent.isPending}>
+              {isEditing
+                ? updateEvent.isPending ? 'Saving...' : 'Save'
+                : createEvent.isPending ? 'Creating...' : 'Create'}
             </Button>
           </div>
         </form>

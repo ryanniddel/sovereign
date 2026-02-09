@@ -13,6 +13,7 @@ export default function MonthlyCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
 
   return (
     <div className="space-y-4">
@@ -20,7 +21,7 @@ export default function MonthlyCalendarPage() {
         currentDate={currentDate}
         view="monthly"
         onDateChange={setCurrentDate}
-        onCreateEvent={() => setCreateOpen(true)}
+        onCreateEvent={() => { setEditEvent(null); setCreateOpen(true); }}
       />
       <MonthlyView
         currentDate={currentDate}
@@ -30,11 +31,16 @@ export default function MonthlyCalendarPage() {
           router.push('/calendar/daily');
         }}
       />
-      <CreateEventDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateEventDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        editEvent={editEvent}
+      />
       <EventDetailSheet
         event={selectedEvent}
         open={!!selectedEvent}
         onOpenChange={(open) => { if (!open) setSelectedEvent(null); }}
+        onEdit={(event) => { setEditEvent(event); setCreateOpen(true); }}
       />
     </div>
   );

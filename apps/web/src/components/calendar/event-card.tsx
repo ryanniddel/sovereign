@@ -2,7 +2,8 @@
 
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CALENDAR_EVENT_TYPE_COLORS, CALENDAR_EVENT_TYPE_LABELS } from '@/lib/constants';
+import { CALENDAR_EVENT_TYPE_COLORS } from '@/lib/constants';
+import { FocusBlockIndicator } from '@/components/calendar/focus-block-indicator';
 import type { CalendarEvent, CalendarEventType } from '@sovereign/shared';
 
 interface EventCardProps {
@@ -24,7 +25,10 @@ export function EventCard({ event, compact, onClick }: EventCardProps) {
     >
       <div className={cn('mt-1.5 h-2 w-2 flex-shrink-0 rounded-full', colorClass)} />
       <div className="min-w-0 flex-1">
-        <p className={cn('font-medium truncate', compact ? 'text-xs' : 'text-sm')}>{event.title}</p>
+        <div className="flex items-center gap-1">
+          <p className={cn('font-medium truncate', compact ? 'text-xs' : 'text-sm')}>{event.title}</p>
+          <FocusBlockIndicator event={event} compact />
+        </div>
         {!compact && (
           <p className="text-xs text-muted-foreground">
             {format(new Date(event.startTime), 'h:mm a')} - {format(new Date(event.endTime), 'h:mm a')}

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { Clock, MapPin, Calendar, Shield, Car, Trash2, ExternalLink } from 'lucide-react';
+import { Clock, MapPin, Calendar, Shield, Car, Trash2, ExternalLink, Pencil, Repeat } from 'lucide-react';
 import { CALENDAR_EVENT_TYPE_LABELS, CALENDAR_EVENT_TYPE_COLORS } from '@/lib/constants';
 import { useDeleteEvent } from '@/hooks/use-calendar';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -17,9 +17,10 @@ interface EventDetailSheetProps {
   event: CalendarEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (event: CalendarEvent) => void;
 }
 
-export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheetProps) {
+export function EventDetailSheet({ event, open, onOpenChange, onEdit }: EventDetailSheetProps) {
   const deleteEvent = useDeleteEvent();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -55,6 +56,12 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
               )}
               {event.isAllDay && (
                 <Badge variant="secondary">All Day</Badge>
+              )}
+              {event.recurrenceRule && (
+                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-500">
+                  <Repeat className="mr-1 h-3 w-3" />
+                  Recurring
+                </Badge>
               )}
             </div>
 
@@ -131,6 +138,20 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
 
             <Separator />
             <div className="flex gap-2">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onEdit(event);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 size="sm"
