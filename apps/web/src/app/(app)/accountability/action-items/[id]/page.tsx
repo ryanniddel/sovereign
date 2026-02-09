@@ -6,6 +6,7 @@ import {
   useUpdateActionItem,
   useCompleteActionItem,
   useRescheduleActionItem,
+  useDelegateActionItem,
   useDeleteActionItem,
 } from '@/hooks/use-action-items';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +16,10 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { PageSkeleton } from '@/components/shared/loading-skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { RescheduleDialog } from '@/components/accountability/reschedule-dialog';
+import { DelegateDialog } from '@/components/accountability/delegate-dialog';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
-import { CheckCircle2, CalendarClock, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, CalendarClock, Forward, Pencil, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -33,10 +35,12 @@ export default function ActionItemDetailPage() {
   const update = useUpdateActionItem();
   const complete = useCompleteActionItem();
   const reschedule = useRescheduleActionItem();
+  const delegateItem = useDelegateActionItem();
   const deleteItem = useDeleteActionItem();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [delegateOpen, setDelegateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   // Edit form state
@@ -95,6 +99,12 @@ export default function ActionItemDetailPage() {
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setRescheduleOpen(true)}>
               <CalendarClock className="h-3.5 w-3.5" />
               Reschedule
+            </Button>
+          )}
+          {!isCompleted && (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDelegateOpen(true)}>
+              <Forward className="h-3.5 w-3.5" />
+              Delegate
             </Button>
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={openEdit}>
@@ -177,6 +187,18 @@ export default function ActionItemDetailPage() {
           )
         }
         loading={reschedule.isPending}
+      />
+
+      <DelegateDialog
+        open={delegateOpen}
+        onOpenChange={setDelegateOpen}
+        onDelegate={(data) =>
+          delegateItem.mutate(
+            { id, delegateToId: data.delegatedToId },
+            { onSuccess: () => setDelegateOpen(false) },
+          )
+        }
+        loading={delegateItem.isPending}
       />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

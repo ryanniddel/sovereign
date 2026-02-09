@@ -1,18 +1,29 @@
 'use client';
 
+import { useState } from 'react';
 import { useAccountabilityDashboard, useAccountabilityScores } from '@/hooks/use-accountability';
 import { Scoreboard } from '@/components/accountability/scoreboard';
 import { StreakDisplay } from '@/components/accountability/streak-display';
 import { ScoreTrendChart } from '@/components/accountability/score-trend-chart';
 import { PageSkeleton } from '@/components/shared/loading-skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { subDays, format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
+const TREND_PERIODS = [
+  { value: '7', label: '7 days' },
+  { value: '14', label: '14 days' },
+  { value: '30', label: '30 days' },
+  { value: '60', label: '60 days' },
+  { value: '90', label: '90 days' },
+];
+
 export default function AccountabilityPage() {
+  const [trendDays, setTrendDays] = useState('30');
   const { data: dashboard, isLoading } = useAccountabilityDashboard();
   const { data: scores } = useAccountabilityScores({
-    startDate: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+    startDate: format(subDays(new Date(), Number(trendDays)), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
   });
 
@@ -33,7 +44,23 @@ export default function AccountabilityPage() {
 
       {dashboard?.streaks && <StreakDisplay streaks={dashboard.streaks} />}
 
-      {scores && scores.length > 0 && <ScoreTrendChart scores={scores} />}
+      {scores && scores.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-end">
+            <Select value={trendDays} onValueChange={setTrendDays}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TREND_PERIODS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <ScoreTrendChart scores={scores} />
+        </div>
+      )}
     </div>
   );
 }
